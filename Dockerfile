@@ -1,15 +1,18 @@
-FROM python:3.9-slim
-
+FROM python:3.10-slim
 
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
+RUN groupadd -r appgroup && useradd -r -g appgroup appuser
 
 WORKDIR /usr/src/app
 
+COPY requirements.txt .
 
-COPY requirements.txt /usr/src/app/
 RUN pip install --no-cache-dir -r requirements.txt
 
+COPY . .
 
-COPY . /usr/src/app/
+RUN chown -R appuser:appgroup /usr/src/app
+
+USER appuser
