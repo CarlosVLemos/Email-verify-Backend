@@ -83,6 +83,8 @@ class BatchEmailProcessor:
         if not email_text or len(email_text.strip()) < 10:
             raise ValueError("Email muito curto ou vazio")
         
+        start_time = time.time()
+        
         # Classificação principal
         classification = self.classifier.classify(email_text)
         
@@ -92,7 +94,11 @@ class BatchEmailProcessor:
         # Gera resposta sugerida
         suggested_response = self._generate_suggested_response(classification, email_text)
         
-        return {
+        # Calcula tempo de processamento
+        processing_time = time.time() - start_time
+        
+        # 🔥 NOVA FUNCIONALIDADE: Integração com Analytics
+        result = {
             'email_id': email_id,
             'email_preview': self._create_preview(email_text),
             'email_full_text': email_text,
@@ -102,8 +108,42 @@ class BatchEmailProcessor:
             'word_count': len(email_text.split()),
             'char_count': len(email_text),
             'status': 'success',
-            'processed_at': time.time()
+            'processed_at': time.time(),
+            'processing_time_ms': int(processing_time * 1000)
         }
+        
+        # Salva dados para analytics (em background, não bloqueia)
+        try:
+            from analytics.views import save_email_analytics
+            
+            analytics_data = {
+                'sender_email': None,  # Não disponível em batch
+                'sender_name': None,
+                'sender_domain': None,
+                'category': classification.get('categoria'),
+                'subcategory': classification.get('subcategoria'),
+                'tone': classification.get('tom'),
+                'urgency': classification.get('urgencia'),
+                'confidence_score': classification.get('confianca', 0.85),
+                'word_count': len(email_text.split()),
+                'char_count': len(email_text),
+                'has_attachments': attachment_analysis.get('has_attachments_mentioned', False),
+                'attachment_score': attachment_analysis.get('score', 0),
+                'keywords_detected': classification.get('palavras_chave_detectadas', []),
+                'technical_data': {
+                    'batch_id': f"batch_{int(time.time())}",
+                    'email_id': email_id,
+                    'method': 'batch_processing'
+                }
+            }
+            
+            save_email_analytics(analytics_data, int(processing_time * 1000), source='batch')
+            
+        except Exception as e:
+            # Analytics não deve quebrar o processamento batch
+            print(f"Warning: Falha ao salvar analytics para email {email_id}: {e}")
+        
+        return result
     
     def _create_preview(self, text: str, max_chars: int = 120) -> str:
         """Cria preview truncado do email"""

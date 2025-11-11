@@ -28,4 +28,5 @@ urlpatterns = [
 
     # Local apps
     path('', include('classifier.urls')),
+    path('analytics/', include('analytics.urls')),
 ]

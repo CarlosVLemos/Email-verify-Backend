@@ -146,11 +146,17 @@ class EmailClassifierView(TemplateView):
             return JsonResponse({'error': 'Nenhum texto de email fornecido.'}, status=400)
         
         try:
+            import time
+            start_time = time.time()
+            
             # Classifica o email usando a nova arquitetura
             classification = self.email_classifier.classify(email_text)
             
             # Analisa anexos mencionados (sempre ativo)
             attachment_analysis = self.attachment_analyzer.analyze(email_text)
+            
+            # Calcula tempo de processamento
+            processing_time = int((time.time() - start_time) * 1000)  # em ms
             
             # Gera resposta automática
             suggested_response = self.response_generator.generate_response(
@@ -160,7 +166,41 @@ class EmailClassifierView(TemplateView):
                 classification['urgencia']
             )
             
-            logger.info(f"Email classificado: {classification['subcategoria']} - {classification['categoria']} | Anexos: {attachment_analysis['has_attachments_mentioned']}")
+            # 🔥 NOVA FUNCIONALIDADE: Salva dados para analytics
+            try:
+                from analytics.views import save_email_analytics
+                
+                # Prepara dados para analytics
+                analytics_data = {
+                    'sender_email': None,  # Não disponível neste contexto
+                    'sender_name': None,
+                    'sender_domain': None,
+                    'category': classification['categoria'],
+                    'subcategory': classification['subcategoria'],
+                    'tone': classification['tom'],
+                    'urgency': classification['urgencia'],
+                    'confidence_score': classification.get('confianca', 0.85),
+                    'word_count': len(email_text.split()),
+                    'char_count': len(email_text),
+                    'has_attachments': attachment_analysis.get('has_attachments_mentioned', False),
+                    'attachment_score': attachment_analysis.get('score', 0),
+                    'keywords_detected': classification.get('palavras_chave_detectadas', []),
+                    'technical_data': {
+                        'user_agent': request.META.get('HTTP_USER_AGENT', ''),
+                        'ip_address': request.META.get('REMOTE_ADDR', ''),
+                        'method': 'single_classification',
+                        'file_upload': 'file' in request.FILES,
+                    }
+                }
+                
+                # Salva analytics de forma assíncrona (não bloqueia resposta)
+                save_email_analytics(analytics_data, processing_time, source='single')
+                
+            except Exception as analytics_error:
+                # Analytics não deve afetar funcionamento principal
+                logger.warning(f"Falha ao salvar analytics: {analytics_error}")
+            
+            logger.info(f"Email classificado: {classification['subcategoria']} - {classification['categoria']} | Anexos: {attachment_analysis['has_attachments_mentioned']} | Tempo: {processing_time}ms")
             
             return JsonResponse({
                 'topic': classification['subcategoria'],
@@ -169,7 +209,8 @@ class EmailClassifierView(TemplateView):
                 'tone': classification['tom'],
                 'urgency': classification['urgencia'],
                 'suggested_response': suggested_response,
-                'attachment_analysis': attachment_analysis
+                'attachment_analysis': attachment_analysis,
+                'processing_time_ms': processing_time  # 📊 Info adicional para usuário
             })
             
         except Exception as e:
