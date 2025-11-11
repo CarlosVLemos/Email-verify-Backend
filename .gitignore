@@ -4,6 +4,7 @@ venv/
 /venv/
 .gitignore
 .gitignore/
-
+staticfiles/
+/staticfiles/
 .env
 db.sqlite3

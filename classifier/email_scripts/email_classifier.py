@@ -1,30 +1,61 @@
 """
-Classificador de emails com lógica hierárquica
-Responsabilidade única: classificar emails seguindo as regras de negócio
+Classificador híbrido de emails: Regras + NLP + IA
+Pipeline: NLP preprocessing → Regras → IA (fallback se confiança < 0.70)
 """
 from .email_patterns import EmailPatterns
+from .nlp_processor import NLPProcessor
+from .ai_classifier import AIClassifier
 
 
 class EmailClassifier:
     def __init__(self):
         self.patterns = EmailPatterns()
+        self.nlp = NLPProcessor()
+        self.ai = AIClassifier()
         
     def classify(self, text):
-        text_lower = text.lower().strip()
+        """
+        Pipeline híbrido de classificação:
+        1. NLP preprocessing (atende requisito)
+        2. Classificação por regras (rápido, 95% dos casos)
+        3. IA fallback se confiança < 0.70 (casos ambíguos)
+        """
+        # ETAPA 1: NLP Preprocessing
+        nlp_data = self.nlp.preprocess(text)
+        text_lower = nlp_data['cleaned_text']
         
+        # ETAPA 2: Classificação por Regras
         spam_result = self._check_spam(text_lower)
         if spam_result:
+            spam_result['nlp_stats'] = self.nlp.get_text_stats(text)
             return spam_result
             
         marketing_result = self._check_marketing(text_lower)  
         if marketing_result:
+            marketing_result['nlp_stats'] = self.nlp.get_text_stats(text)
             return marketing_result
             
         thanks_result = self._check_simple_thanks(text_lower, text)
         if thanks_result:
+            thanks_result['nlp_stats'] = self.nlp.get_text_stats(text)
             return thanks_result
             
-        return self._classify_productive(text_lower, text)
+        rule_result = self._classify_productive(text_lower, text)
+        
+        # ETAPA 3: IA Fallback (apenas se confiança baixa)
+        if rule_result['confianca'] < 0.70 and self.ai.enabled:
+            nlp_stats = self.nlp.get_text_stats(text)
+            ai_result = self.ai.classify(text, nlp_stats)
+            
+            if ai_result and ai_result['confianca'] > rule_result['confianca']:
+                ai_result['nlp_stats'] = nlp_stats
+                ai_result['fallback_used'] = True
+                return ai_result
+        
+        # Retorna resultado das regras com stats NLP
+        rule_result['nlp_stats'] = self.nlp.get_text_stats(text)
+        rule_result['fallback_used'] = False
+        return rule_result
     
     def _check_spam(self, text_lower):
         full_text = text_lower
