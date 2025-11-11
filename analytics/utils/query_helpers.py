@@ -2,7 +2,7 @@
 Query helpers para Analytics
 Centraliza queries comuns e otimizações de performance
 """
-from django.db.models import Count, Avg, Sum, Q, F
+from django.db.models import ( Count, Avg, Sum, Q, F, FloatField,Value, ExpressionWrapper, Case, When)
 from django.utils import timezone
 from datetime import timedelta
 import logging
@@ -79,7 +79,7 @@ class AnalyticsQueryBuilder:
                 **{f'{period_field}__gt': 0}
             ).order_by(f'-{period_field}').values(
                 'category', 'subcategory', 'total_count',
-                period_field, 'trend_direction', 'avg_confidence'
+                period_field, 'trend_direction', 'trend_percentage', 'avg_confidence'
             )[:limit]
         except Exception as e:
             logger.error(f"Error getting top categories: {e}")
@@ -104,6 +104,38 @@ class AnalyticsQueryBuilder:
             logger.error(f"Error getting top senders: {e}")
             return []
     
+    @staticmethod
+    def get_sender_segment(min_emails=3, limit=20, segment='productive'):
+        """
+        Retorna lista de remetentes segmentada (produtivos ou improdutivos)
+        """
+        from analytics.models import SenderStats
+
+        try:
+            queryset = SenderStats.objects.filter(total_count__gte=min_emails)
+
+            if segment == 'productive':
+                queryset = queryset.filter(productivity_rate__gt=0).order_by('-productivity_rate', '-total_count')
+            elif segment == 'unproductive':
+                queryset = queryset.filter(productivity_rate__lt=100).order_by('productivity_rate', '-total_count')
+            else:
+                queryset = queryset.order_by('-total_count')
+
+            return queryset.values(
+                'sender_identifier',
+                'sender_type',
+                'productivity_rate',
+                'total_count',
+                'productive_count',
+                'unproductive_count',
+                'first_seen',
+                'last_seen'
+            )[:limit]
+
+        except Exception as e:
+            logger.error(f"Error getting sender segment ({segment}): {e}")
+            return []
+
     @staticmethod
     def get_timeline_data(date_from, granularity='daily'):
         """
@@ -141,6 +173,41 @@ class AnalyticsQueryBuilder:
             logger.error(f"Error getting keyword insights: {e}")
             return []
     
+    @staticmethod
+    def get_trending_keywords(limit=20):
+        """
+        Retorna palavras-chave em tendência considerando últimos 7 dias
+        """
+        from analytics.models import KeywordFrequency
+
+        try:
+            trend_ratio = ExpressionWrapper(
+                F('last_7_days_freq') * Value(7.0) /
+                Case(
+                    When(frequency__gt=0, then=F('frequency')),
+                    default=Value(1.0),
+                    output_field=FloatField()
+                ),
+                output_field=FloatField()
+            )
+
+            return KeywordFrequency.objects.filter(
+                last_7_days_freq__gt=0
+            ).annotate(
+                trend_ratio=trend_ratio
+            ).order_by('-trend_ratio').values(
+                'keyword',
+                'category',
+                'frequency',
+                'last_7_days_freq',
+                'avg_confidence_when_present',
+                'trend_ratio'
+            )[:limit]
+
+        except Exception as e:
+            logger.error(f"Error getting trending keywords: {e}")
+            return []
+
     @staticmethod
     def get_domains_summary(min_emails=5, limit=15):
         """
@@ -229,6 +296,36 @@ class AnalyticsQueryBuilder:
                 'processing_distribution': [],
                 'confidence_distribution': [],
                 'total_emails': 0
+            }
+
+    @staticmethod
+    def get_performance_stats(date_from):
+        """
+        Retorna métricas agregadas de performance geral
+        """
+        from analytics.models import EmailAnalytics
+
+        try:
+            base_queryset = EmailAnalytics.objects.filter(processed_at__gte=date_from)
+            stats = base_queryset.aggregate(
+                avg_processing_time=Avg('processing_time_ms'),
+                total_processed=Count('id'),
+                avg_confidence=Avg('confidence_score'),
+            )
+            stats['confidence_above_70'] = base_queryset.filter(confidence_score__gte=0.7).count()
+            stats['total_processed_today'] = EmailAnalytics.objects.filter(
+                processed_at__date=timezone.now().date()
+            ).count()
+            return stats
+
+        except Exception as e:
+            logger.error(f"Error getting performance stats: {e}")
+            return {
+                'avg_processing_time': 0,
+                'total_processed': 0,
+                'avg_confidence': 0,
+                'confidence_above_70': 0,
+                'total_processed_today': 0,
             }
 
 
