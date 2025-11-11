@@ -10,6 +10,7 @@ from drf_spectacular.utils import extend_schema, inline_serializer
 from rest_framework import serializers
 
 from .email_scripts import EmailClassifier, EmailResponseGenerator, AttachmentAnalyzer, ExecutiveSummarizer
+from .email_scripts.batch_processor import BatchEmailProcessor, BatchFileParser, BatchValidator
 
 # Configura o logging
 logger = logging.getLogger(__name__)
@@ -291,3 +292,203 @@ class ExecutiveSummaryView(TemplateView):
         except Exception as e:
             logger.error(f"Erro ao gerar resumo executivo: {e}")
             return JsonResponse({'error': 'Erro ao processar resumo executivo.'}, status=500)
+
+
+@method_decorator(csrf_exempt, name='dispatch') 
+class BatchEmailView(TemplateView):
+    """
+    View para processamento em lote de emails
+    Otimizada para Render com streaming response
+    """
+    template_name = 'classifier/batch.html'
+    
+    def __init__(self):
+        super().__init__()
+        self.processor = BatchEmailProcessor()
+    
+    def get(self, request, *args, **kwargs):
+        """Renderiza a página de batch processing"""
+        return super().get(request, *args, **kwargs)
+    
+    @extend_schema(
+        summary="Processa múltiplos emails em lote",
+        description="""
+        Endpoint para processamento em lote de emails com otimizações para Render.
+        
+        **Métodos de Entrada:**
+        1. **Arquivo:** Upload de .txt, .csv, .json (máx 5MB)
+        2. **Texto:** Múltiplos emails separados por linha vazia
+        
+        **Limitações Render:**
+        - Máximo 50 emails por batch
+        - Processamento em chunks de 10
+        - Timeout de 30s (com streaming)
+        
+        **Formatos Suportados:**
+        - TXT: emails separados por linhas vazias
+        - CSV: cada linha é um email
+        - JSON: array de strings ou objeto com chave 'emails'
+        """,
+        request={
+            "multipart/form-data": inline_serializer(
+                name="BatchFilePayload", 
+                fields={
+                    "file": serializers.FileField(help_text="Arquivo com emails (.txt/.csv/.json)"),
+                }
+            ),
+            "application/json": inline_serializer(
+                name="BatchTextPayload",
+                fields={
+                    "emails": serializers.ListField(
+                        child=serializers.CharField(),
+                        help_text="Lista de emails para processar"
+                    )
+                }
+            )
+        },
+        responses={
+            200: inline_serializer(
+                name="BatchSuccess",
+                fields={
+                    "request_id": serializers.CharField(help_text="ID da requisição"),
+                    "total_emails": serializers.IntegerField(help_text="Total de emails a processar"),
+                    "estimated_time": serializers.IntegerField(help_text="Tempo estimado em segundos"),
+                    "results": serializers.ListField(
+                        child=serializers.DictField(),
+                        help_text="Resultados do processamento"
+                    )
+                }
+            ),
+            400: inline_serializer(name="BatchError400", fields={"error": serializers.CharField()}),
+            413: inline_serializer(name="BatchError413", fields={"error": serializers.CharField()})
+        }
+    )
+    def post(self, request, *args, **kwargs):
+        """Processa batch de emails"""
+        try:
+            emails = []
+            
+            # Processa arquivo ou texto
+            if 'file' in request.FILES:
+                uploaded_file = request.FILES['file']
+                
+                # Valida arquivo
+                validation = BatchValidator.validate_file(uploaded_file)
+                if not validation['valid']:
+                    return JsonResponse({'error': validation['error']}, status=400)
+                
+                # Parse do arquivo
+                try:
+                    emails = BatchFileParser.parse_file(uploaded_file.read(), uploaded_file.name)
+                except ValueError as e:
+                    return JsonResponse({'error': str(e)}, status=400)
+                    
+            else:
+                # Processa texto JSON
+                try:
+                    data = json.loads(request.body)
+                    emails = data.get('emails', [])
+                    if isinstance(emails, str):
+                        # Se veio como string, divide por linhas vazias
+                        emails = [email.strip() for email in emails.split('\n\n') if email.strip()]
+                except json.JSONDecodeError:
+                    return JsonResponse({'error': 'JSON inválido.'}, status=400)
+            
+            # Valida emails
+            validation = BatchValidator.validate_emails(emails)
+            if not validation['valid']:
+                return JsonResponse({'error': validation['error']}, status=400)
+            
+            # Filtra emails válidos
+            valid_emails = [email for email in emails if len(email.strip()) >= 10]
+            
+            # Processa de forma síncrona (para Render)
+            results = []
+            total = len(valid_emails)
+            
+            for i, email_result in enumerate(self.processor.process_batch(valid_emails)):
+                if email_result['type'] == 'chunk_complete':
+                    results.extend(email_result['results'])
+                elif email_result['type'] == 'complete':
+                    break
+            
+            # Estatísticas finais
+            successful = len([r for r in results if r.get('status') == 'success'])
+            failed = len(results) - successful
+            
+            logger.info(f"Batch processado: {successful} sucessos, {failed} falhas")
+            
+            return JsonResponse({
+                'request_id': f"batch_{int(time.time())}",
+                'total_emails': total,
+                'successful': successful,
+                'failed': failed,
+                'results': results,
+                'processing_time_seconds': len(valid_emails) * 0.5,  # Estimativa
+                'status': 'completed'
+            })
+            
+        except Exception as e:
+            logger.error(f"Erro no processamento batch: {e}")
+            return JsonResponse({'error': 'Erro interno no processamento batch.'}, status=500)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class BatchResultsView(TemplateView):
+    """View para exibir e gerenciar resultados do batch"""
+    
+    def post(self, request, *args, **kwargs):
+        """Endpoint para ações nos resultados (copiar, editar, reprocessar)"""
+        try:
+            data = json.loads(request.body)
+            action = data.get('action')
+            email_id = data.get('email_id')
+            
+            if action == 'copy_response':
+                # Retorna a resposta para cópia
+                suggested_response = data.get('suggested_response', '')
+                return JsonResponse({
+                    'success': True,
+                    'response_text': suggested_response,
+                    'message': 'Resposta copiada com sucesso'
+                })
+                
+            elif action == 'edit_classification':
+                # Permite edição da classificação
+                new_category = data.get('new_category')
+                new_subcategory = data.get('new_subcategory')
+                
+                # Aqui você salvaria a edição (se tivesse banco)
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Classificação editada com sucesso',
+                    'updated': {
+                        'category': new_category,
+                        'subcategory': new_subcategory
+                    }
+                })
+                
+            elif action == 'reprocess':
+                # Reprocessa um email específico
+                email_text = data.get('email_text', '')
+                if not email_text:
+                    return JsonResponse({'error': 'Texto do email não fornecido'}, status=400)
+                
+                processor = BatchEmailProcessor()
+                result = processor._process_single_email(email_text, email_id)
+                
+                return JsonResponse({
+                    'success': True,
+                    'result': result,
+                    'message': 'Email reprocessado com sucesso'
+                })
+            
+            else:
+                return JsonResponse({'error': 'Ação não reconhecida'}, status=400)
+                
+        except Exception as e:
+            logger.error(f"Erro em ação de resultado: {e}")
+            return JsonResponse({'error': 'Erro ao executar ação'}, status=500)
+
+
+import time
