@@ -43,12 +43,11 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
-    # Third-party apps
     'rest_framework',
     'drf_spectacular',
+    'drf_spectacular_sidecar',
     'corsheaders',
 
-    # Local apps
     'classifier',
     'analytics',
 ]
@@ -127,9 +126,8 @@ USE_TZ = True
 
 
 # Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.2/howto/static-files/
-
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # Media files
 MEDIA_URL = '/media/'
@@ -149,10 +147,89 @@ REST_FRAMEWORK = {
 
 # drf-spectacular
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'Verificador de Email API',
-    'DESCRIPTION': 'API para verificar a validade e o score de emails',
+    'TITLE': 'Email Intelligence API',
+    'DESCRIPTION': """
+# 🤖 Email Intelligence API
+
+API completa para classificação inteligente de emails e analytics de produtividade.
+
+## 🎯 Principais Recursos
+
+### 📧 Email Classifier
+- Classificação automática por categoria e subcategoria
+- Detecção de tom emocional (Positivo/Negativo/Neutro)
+- Análise de urgência (Alta/Média/Baixa)
+- Geração de resposta sugerida
+- Análise de anexos mencionados
+- Resumo executivo de emails longos
+- Processamento em lote (até 50 emails)
+
+### 📊 Analytics Dashboard
+- Métricas de produtividade em tempo real
+- Tendências e gráficos temporais
+- Análise de remetentes e domínios
+- Insights de palavras-chave
+- Métricas de performance do sistema
+- Distribuição de categorias
+- Lista paginada de emails processados
+
+## 🚀 Getting Started
+
+1. **Classificar um email único**:
+   ```bash
+   POST /classifier/classify/
+   {
+     "email_text": "Seu email aqui..."
+   }
+   ```
+
+2. **Ver dashboard de produtividade**:
+   ```bash
+   GET /analytics/dashboard/overview/?days=30
+   ```
+
+3. **Processar emails em lote**:
+   ```bash
+   POST /classifier/batch/
+   {
+     "emails": ["email 1", "email 2", "email 3"]
+   }
+   ```
+
+## 📖 Documentação
+
+- **Swagger UI**: Interface interativa para testar endpoints
+- **ReDoc**: Documentação detalhada alternativa
+- **OpenAPI Schema**: Schema JSON para integração
+
+## 🔗 Links Úteis
+
+- Repositório: https://github.com/CarlosVLemos/Email-verify-Backend
+- Documentação completa: Ver arquivo API_ENDPOINTS.md
+    """,
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
+    'COMPONENT_SPLIT_REQUEST': True,
+    'SCHEMA_PATH_PREFIX': r'/api/',
+    'DEFAULT_GENERATOR_CLASS': 'drf_spectacular.generators.SchemaGenerator',
+    'SERVE_PERMISSIONS': ['rest_framework.permissions.AllowAny'],
+    'SERVE_AUTHENTICATION': None,
+    'SWAGGER_UI_SETTINGS': {
+        'deepLinking': True,
+        'persistAuthorization': True,
+        'displayOperationId': True,
+        'filter': True,
+        'tryItOutEnabled': True,
+    },
+    'SWAGGER_UI_DIST': 'SIDECAR',
+    'SWAGGER_UI_FAVICON_HREF': 'SIDECAR',
+    'REDOC_DIST': 'SIDECAR',
+    'SORT_OPERATIONS': False,
+    'TAGS': [
+        {'name': 'Email Classification', 'description': 'Endpoints para classificação e análise de emails'},
+        {'name': 'Analytics Dashboard', 'description': 'Endpoints para métricas e insights de produtividade'},
+        {'name': 'System', 'description': 'Endpoints de sistema e health check'},
+    ],
 }
 
 CORS_ALLOWED_ORIGINS = [
