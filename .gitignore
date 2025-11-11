@@ -1,6 +1,9 @@
-
+venv
+venv/
+/venv
 /venv/
-
+.gitignore
+.gitignore/
 
 .env
 db.sqlite3

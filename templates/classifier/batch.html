@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Processamento em Lote - Email Classifier</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .main-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .tabs {
+            display: flex;
+            background: #f8f9fa;
+        }
+        
+        .tab-button {
+            flex: 1;
+            padding: 20px;
+            background: none;
+            border: none;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: #666;
+        }
+        
+        .tab-button.active {
+            background: white;
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+        }
+        
+        .tab-content {
+            padding: 30px;
+            min-height: 400px;
+        }
+        
+        .tab-panel {
+            display: none;
+        }
+        
+        .tab-panel.active {
+            display: block;
+        }
+        
+        .upload-area {
+            border: 3px dashed #ddd;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        
+        .upload-area.dragover {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+        }
+        
+        .upload-icon {
+            font-size: 3rem;
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        
+        .upload-text h3 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .upload-text p {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .textarea {
+            width: 100%;
+            min-height: 300px;
+            padding: 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            resize: vertical;
+        }
+        
+        .textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .progress-container {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            display: none;
+        }
+        
+        .progress-bar {
+            background: #e0e0e0;
+            height: 10px;
+            border-radius: 5px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-fill {
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .results-container {
+            margin-top: 30px;
+            display: none;
+        }
+        
+        .results-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px 10px 0 0;
+        }
+        
+        .results-stats {
+            display: flex;
+            justify-content: space-around;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 0 0 10px 10px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            color: #666;
+        }
+        
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .results-table th {
+            background: #667eea;
+            color: white;
+            padding: 15px 10px;
+            text-align: left;
+            font-weight: 600;
+        }
+        
+        .results-table td {
+            padding: 15px 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .results-table tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .category-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .category-produtivo {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .category-improdutivo {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .urgency-alta {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .urgency-media {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .urgency-baixa {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .btn-small {
+            padding: 5px 10px;
+            font-size: 0.8rem;
+            border-radius: 15px;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        
+        .btn-copy {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-edit {
+            background: #ffc107;
+            color: #212529;
+        }
+        
+        .btn-reprocess {
+            background: #17a2b8;
+            color: white;
+        }
+        
+        .email-preview {
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+        }
+        
+        .confidence-score {
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .file-preview {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            display: none;
+        }
+        
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .file-icon {
+            font-size: 1.5rem;
+            color: #667eea;
+        }
+        
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            display: none;
+        }
+        
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            display: none;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .tabs {
+                flex-direction: column;
+            }
+            
+            .tab-content {
+                padding: 20px;
+            }
+            
+            .results-stats {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .results-table {
+                font-size: 0.8rem;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📧 Processamento em Lote</h1>
+            <p>Classifique múltiplos emails de uma só vez - Otimizado para Render</p>
+        </div>
+        
+        <div class="main-card">
+            <div class="tabs">
+                <button class="tab-button active" onclick="switchTab('upload')">
+                    📁 Upload de Arquivo
+                </button>
+                <button class="tab-button" onclick="switchTab('text')">
+                    📝 Texto Múltiplo
+                </button>
+            </div>
+            
+            <div class="tab-content">
+                <!-- Upload Tab -->
+                <div id="upload-tab" class="tab-panel active">
+                    <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                        <div class="upload-icon">📁</div>
+                        <div class="upload-text">
+                            <h3>Arraste seu arquivo aqui ou clique para selecionar</h3>
+                            <p>Formatos suportados: .txt, .csv, .json | Máximo: 5MB | Limite: 50 emails</p>
+                        </div>
+                    </div>
+                    <input type="file" id="fileInput" class="file-input" accept=".txt,.csv,.json">
+                    
+                    <div id="filePreview" class="file-preview">
+                        <div class="file-info">
+                            <span class="file-icon">📄</span>
+                            <div>
+                                <div id="fileName"></div>
+                                <div id="fileSize" style="font-size: 0.8rem; color: #666;"></div>
+                            </div>
+                        </div>
+                        <div id="fileContent" style="max-height: 200px; overflow-y: auto; background: white; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 0.8rem;"></div>
+                    </div>
+                    
+                    <button id="processFileBtn" class="btn" onclick="processFile()" disabled>
+                        🚀 Processar Arquivo
+                    </button>
+                </div>
+                
+                <!-- Text Tab -->
+                <div id="text-tab" class="tab-panel">
+                    <h3>Cole múltiplos emails (separe por linha vazia)</h3>
+                    <textarea 
+                        id="emailsText" 
+                        class="textarea" 
+                        placeholder="Email 1: Texto do primeiro email...
+
+Email 2: Texto do segundo email...
+
+Email 3: Texto do terceiro email...
+
+(Máximo 50 emails)"
+                    ></textarea>
+                    
+                    <button id="processTextBtn" class="btn" onclick="processText()">
+                        🚀 Processar Emails
+                    </button>
+                </div>
+                
+                <!-- Progress Section -->
+                <div id="progressContainer" class="progress-container">
+                    <h4>Processando...</h4>
+                    <div class="progress-bar">
+                        <div id="progressFill" class="progress-fill"></div>
+                    </div>
+                    <p id="progressText">0 de 0 emails processados (0%)</p>
+                </div>
+                
+                <!-- Messages -->
+                <div id="errorMessage" class="error-message"></div>
+                <div id="successMessage" class="success-message"></div>
+            </div>
+        </div>
+        
+        <!-- Results Section -->
+        <div id="resultsContainer" class="results-container">
+            <div class="results-header">
+                <h2>📊 Resultados do Processamento</h2>
+                <p id="processingTime">Processamento concluído em 0s</p>
+            </div>
+            
+            <div class="results-stats">
+                <div class="stat-item">
+                    <div id="totalEmails" class="stat-number">0</div>
+                    <div class="stat-label">Total</div>
+                </div>
+                <div class="stat-item">
+                    <div id="successCount" class="stat-number">0</div>
+                    <div class="stat-label">Sucessos</div>
+                </div>
+                <div class="stat-item">
+                    <div id="errorCount" class="stat-number">0</div>
+                    <div class="stat-label">Erros</div>
+                </div>
+                <div class="stat-item">
+                    <div id="avgConfidence" class="stat-number">0%</div>
+                    <div class="stat-label">Confiança Média</div>
+                </div>
+            </div>
+            
+            <div style="overflow-x: auto;">
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Preview do Email</th>
+                            <th>Categoria</th>
+                            <th>Subcategoria</th>
+                            <th>Tom</th>
+                            <th>Urgência</th>
+                            <th>Confiança</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultsTableBody">
+                    </tbody>
+                </table>
+            </div>
+            
+            <div style="text-align: center; margin-top: 20px;">
+                <button class="btn" onclick="exportResults()">💾 Exportar Resultados</button>
+                <button class="btn" onclick="resetForm()">🔄 Nova Análise</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentResults = [];
+        
+        function switchTab(tabName) {
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
+            
+            // Add active class to clicked tab
+            event.target.classList.add('active');
+            document.getElementById(tabName + '-tab').classList.add('active');
+        }
+        
+        // File handling
+        document.getElementById('fileInput').addEventListener('change', handleFileSelect);
+        
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            // Validate file
+            const maxSize = 5 * 1024 * 1024; // 5MB
+            const allowedTypes = ['text/plain', 'text/csv', 'application/json'];
+            
+            if (file.size > maxSize) {
+                showError('Arquivo muito grande. Máximo permitido: 5MB');
+                return;
+            }
+            
+            // Show file preview
+            const preview = document.getElementById('filePreview');
+            const fileName = document.getElementById('fileName');
+            const fileSize = document.getElementById('fileSize');
+            const fileContent = document.getElementById('fileContent');
+            
+            fileName.textContent = file.name;
+            fileSize.textContent = `${(file.size / 1024).toFixed(1)} KB`;
+            
+            // Read file content for preview
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const content = e.target.result;
+                fileContent.textContent = content.substring(0, 500) + (content.length > 500 ? '...' : '');
+            };
+            reader.readAsText(file);
+            
+            preview.style.display = 'block';
+            document.getElementById('processFileBtn').disabled = false;
+        }
+        
+        // Drag and drop
+        const uploadArea = document.querySelector('.upload-area');
+        
+        uploadArea.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            this.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            this.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                document.getElementById('fileInput').files = files;
+                handleFileSelect({ target: { files: files } });
+            }
+        });
+        
+        async function processFile() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                showError('Nenhum arquivo selecionado');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            try {
+                showProgress();
+                const response = await fetch('/batch/', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(result.error || 'Erro no processamento');
+                }
+                
+                displayResults(result);
+                showSuccess(`Processamento concluído! ${result.successful} emails processados com sucesso.`);
+                
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                hideProgress();
+            }
+        }
+        
+        async function processText() {
+            const emailsText = document.getElementById('emailsText').value.trim();
+            
+            if (!emailsText) {
+                showError('Nenhum email fornecido');
+                return;
+            }
+            
+            // Split by double newlines
+            const emails = emailsText.split('\n\n').filter(email => email.trim().length > 10);
+            
+            if (emails.length === 0) {
+                showError('Nenhum email válido encontrado (mínimo 10 caracteres)');
+                return;
+            }
+            
+            if (emails.length > 50) {
+                showError('Muitos emails. Máximo permitido: 50');
+                return;
+            }
+            
+            try {
+                showProgress();
+                updateProgress(0, emails.length);
+                
+                const response = await fetch('/batch/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ emails: emails })
+                });
+                
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(result.error || 'Erro no processamento');
+                }
+                
+                displayResults(result);
+                showSuccess(`Processamento concluído! ${result.successful} emails processados com sucesso.`);
+                
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                hideProgress();
+            }
+        }
+        
+        function displayResults(result) {
+            currentResults = result.results;
+            
+            // Update stats
+            document.getElementById('totalEmails').textContent = result.total_emails;
+            document.getElementById('successCount').textContent = result.successful;
+            document.getElementById('errorCount').textContent = result.failed;
+            document.getElementById('processingTime').textContent = 
+                `Processamento concluído em ${result.processing_time_seconds || 0}s`;
+            
+            // Calculate average confidence
+            const successResults = result.results.filter(r => r.status === 'success');
+            const avgConf = successResults.length > 0 ? 
+                successResults.reduce((acc, r) => acc + (r.classification?.confianca || 0), 0) / successResults.length : 0;
+            document.getElementById('avgConfidence').textContent = `${Math.round(avgConf * 100)}%`;
+            
+            // Populate table
+            const tbody = document.getElementById('resultsTableBody');
+            tbody.innerHTML = '';
+            
+            result.results.forEach((item, index) => {
+                const row = document.createElement('tr');
+                
+                if (item.status === 'success') {
+                    const classification = item.classification;
+                    row.innerHTML = `
+                        <td>${item.email_id}</td>
+                        <td class="email-preview" title="${item.email_full_text}">${item.email_preview}</td>
+                        <td><span class="category-badge category-${classification.categoria.toLowerCase()}">${classification.categoria}</span></td>
+                        <td>${classification.subcategoria}</td>
+                        <td>${classification.tom}</td>
+                        <td><span class="category-badge urgency-${classification.urgencia.toLowerCase()}">${classification.urgencia}</span></td>
+                        <td class="confidence-score">${Math.round((classification.confianca || 0) * 100)}%</td>
+                        <td class="action-buttons">
+                            <button class="btn-small btn-copy" onclick="copyResponse('${item.suggested_response}')">📋</button>
+                            <button class="btn-small btn-edit" onclick="editClassification(${index})">✏️</button>
+                            <button class="btn-small btn-reprocess" onclick="reprocessEmail(${index})">🔄</button>
+                        </td>
+                    `;
+                } else {
+                    row.innerHTML = `
+                        <td>${item.email_id}</td>
+                        <td class="email-preview">${item.email_preview}</td>
+                        <td colspan="5" style="color: #dc3545;">Erro: ${item.error}</td>
+                        <td class="action-buttons">
+                            <button class="btn-small btn-reprocess" onclick="reprocessEmail(${index})">🔄</button>
+                        </td>
+                    `;
+                }
+                
+                tbody.appendChild(row);
+            });
+            
+            // Show results container
+            document.getElementById('resultsContainer').style.display = 'block';
+        }
+        
+        function showProgress() {
+            document.getElementById('progressContainer').style.display = 'block';
+        }
+        
+        function hideProgress() {
+            document.getElementById('progressContainer').style.display = 'none';
+        }
+        
+        function updateProgress(current, total) {
+            const percentage = (current / total) * 100;
+            document.getElementById('progressFill').style.width = `${percentage}%`;
+            document.getElementById('progressText').textContent = 
+                `${current} de ${total} emails processados (${Math.round(percentage)}%)`;
+        }
+        
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            setTimeout(() => errorDiv.style.display = 'none', 5000);
+        }
+        
+        function showSuccess(message) {
+            const successDiv = document.getElementById('successMessage');
+            successDiv.textContent = message;
+            successDiv.style.display = 'block';
+            setTimeout(() => successDiv.style.display = 'none', 5000);
+        }
+        
+        function copyResponse(response) {
+            navigator.clipboard.writeText(response).then(() => {
+                showSuccess('Resposta copiada para a área de transferência!');
+            });
+        }
+        
+        function editClassification(index) {
+            const item = currentResults[index];
+            const newCategory = prompt('Nova categoria:', item.classification.categoria);
+            if (newCategory) {
+                const newSubcategory = prompt('Nova subcategoria:', item.classification.subcategoria);
+                if (newSubcategory) {
+                    // Update locally (in a real app, you'd save to server)
+                    item.classification.categoria = newCategory;
+                    item.classification.subcategoria = newSubcategory;
+                    showSuccess('Classificação editada localmente!');
+                }
+            }
+        }
+        
+        async function reprocessEmail(index) {
+            const item = currentResults[index];
+            try {
+                const response = await fetch('/batch/results/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'reprocess',
+                        email_id: item.email_id,
+                        email_text: item.email_full_text
+                    })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    currentResults[index] = result.result;
+                    showSuccess('Email reprocessado com sucesso!');
+                    // Refresh just this row
+                    displayResults({ results: currentResults, total_emails: currentResults.length, successful: currentResults.filter(r => r.status === 'success').length, failed: currentResults.filter(r => r.status !== 'success').length });
+                }
+            } catch (error) {
+                showError('Erro ao reprocessar email');
+            }
+        }
+        
+        function exportResults() {
+            if (currentResults.length === 0) return;
+            
+            // Create CSV
+            const headers = ['ID', 'Preview', 'Categoria', 'Subcategoria', 'Tom', 'Urgência', 'Confiança', 'Resposta Sugerida'];
+            const csvContent = [
+                headers.join(','),
+                ...currentResults.map(item => {
+                    if (item.status === 'success') {
+                        return [
+                            item.email_id,
+                            `"${item.email_preview.replace(/"/g, '""')}"`,
+                            item.classification.categoria,
+                            item.classification.subcategoria,
+                            item.classification.tom,
+                            item.classification.urgencia,
+                            Math.round((item.classification.confianca || 0) * 100) + '%',
+                            `"${item.suggested_response.replace(/"/g, '""')}"`
+                        ].join(',');
+                    } else {
+                        return [item.email_id, `"${item.email_preview.replace(/"/g, '""')}"`, 'ERRO', item.error, '', '', '', ''].join(',');
+                    }
+                })
+            ].join('\n');
+            
+            // Download
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `email_results_${new Date().toISOString().slice(0,10)}.csv`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+        
+        function resetForm() {
+            // Reset form
+            document.getElementById('fileInput').value = '';
+            document.getElementById('emailsText').value = '';
+            document.getElementById('filePreview').style.display = 'none';
+            document.getElementById('processFileBtn').disabled = true;
+            document.getElementById('resultsContainer').style.display = 'none';
+            currentResults = [];
+        }
+    </script>
+</body>
+</html>

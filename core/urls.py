@@ -25,4 +25,8 @@ urlpatterns = [
     # Optional UI:
     path('api/swagger/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
+
+    # Local apps
+    path('', include('classifier.urls')),
+    path('analytics/', include('analytics.urls')),
 ]

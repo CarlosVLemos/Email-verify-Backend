@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verificador de Email</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .container {
+            max-width: 700px;
+        }
+        .card {
+            border-radius: 0.75rem;
+        }
+        #result-card {
+            display: none;
+        }
+        .confidence-badge {
+            font-size: 0.9rem;
+        }
+        .spinner-border-sm {
+            width: 1rem;
+            height: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h1 class="card-title text-center mb-4">Analisador de Emails com IA</h1>
+                <form id="classifier-form">
+                    <div class="mb-3">
+                        <label for="email-text" class="form-label">Cole o texto do email abaixo:</label>
+                        <textarea class="form-control" id="email-text" rows="8" placeholder="Cole o conteúdo do seu email aqui..."></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="email-file" class="form-label">Ou faça o upload de um arquivo:</label>
+                        <input class="form-control" type="file" id="email-file" accept=".txt,.pdf,.doc,.docx">
+                        <div class="form-text">Formatos aceitos: .txt, .pdf, .doc, .docx</div>
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary" id="submit-btn">
+                            Analisar Email
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mt-4" id="result-card">
+            <div class="card-body">
+                <h2 class="card-title">Resultado da Análise</h2>
+                <div id="results" class="row mb-3">
+                    <div class="col-md-6">
+                        <p><strong>Categoria:</strong> <span id="result-category" class="badge"></span></p>
+                        <p><strong>Sub-categoria:</strong> <span id="result-subcategory" class="fw-normal"></span> <span id="result-confidence" class="badge rounded-pill text-bg-light fw-normal"></span></p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Tom:</strong> <span id="result-tone" class="fw-normal"></span></p>
+                        <p><strong>Urgência:</strong> <span id="result-urgency" class="fw-normal"></span></p>
+                    </div>
+                </div>
+
+                <!-- Nova seção: Análise de Anexos -->
+                <div id="attachment-analysis" class="mb-3">
+                    <h5>📎 Análise de Anexos</h5>
+                    <div id="attachment-content" class="p-3 bg-light border rounded">
+                        <!-- Será preenchido dinamicamente -->
+                    </div>
+                </div>
+
+                <!-- Botão para Resumo Executivo -->
+                <div class="mb-3">
+                    <button id="summary-btn" class="btn btn-outline-primary" disabled>
+                        📋 Gerar Resumo Executivo
+                    </button>
+                    <div id="summary-content" class="mt-3" style="display: none;">
+                        <h5>📋 Resumo Executivo</h5>
+                        <div id="summary-result" class="p-3 bg-info bg-opacity-10 border rounded">
+                            <!-- Será preenchido dinamicamente -->
+                        </div>
+                    </div>
+                </div>
+
+                <hr>
+                <h5 class="mt-3">Resposta Sugerida:</h5>
+                <div id="result-suggestion" class="p-3 bg-light border rounded"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('classifier-form');
+        const submitBtn = document.getElementById('submit-btn');
+        const emailText = document.getElementById('email-text');
+        const emailFile = document.getElementById('email-file');
+        const resultCard = document.getElementById('result-card');
+        
+        // Result fields
+        const resultCategory = document.getElementById('result-category');
+        const resultSubcategory = document.getElementById('result-subcategory');
+        const resultTone = document.getElementById('result-tone');
+        const resultUrgency = document.getElementById('result-urgency');
+        const resultSuggestion = document.getElementById('result-suggestion');
+        
+        // New elements for attachments and summary
+        const attachmentContent = document.getElementById('attachment-content');
+        const summaryBtn = document.getElementById('summary-btn');
+        const summaryContent = document.getElementById('summary-content');
+        const summaryResult = document.getElementById('summary-result');
+        
+        let currentEmailText = ''; // Para usar no resumo executivo
+
+        function setLoading(isLoading) {
+            submitBtn.disabled = isLoading;
+            if (isLoading) {
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Analisando...';
+            } else {
+                submitBtn.textContent = 'Analisar Email';
+            }
+        }
+
+        function showError(message) {
+            resultCategory.textContent = 'Erro';
+            resultCategory.className = 'badge bg-danger';
+            resultSubcategory.textContent = 'N/A';
+            resultTone.textContent = 'N/A';
+            resultUrgency.textContent = 'N/A';
+            resultSuggestion.textContent = message;
+            resultCard.style.display = 'block';
+        }
+
+        function showResult(data) {
+            // Main Category
+            resultCategory.textContent = data.category || 'N/A';
+            resultCategory.className = data.category === 'Produtivo' 
+                ? 'badge bg-success' 
+                : data.category === 'Social'
+                ? 'badge bg-info'
+                : 'badge bg-warning text-dark';
+
+            // Detailed classification
+            resultSubcategory.textContent = data.topic || 'N/A';
+            resultTone.textContent = data.tone || 'N/A';
+            resultUrgency.textContent = data.urgency || 'N/A';
+            
+            // Attachment Analysis (Nova funcionalidade)
+            showAttachmentAnalysis(data.attachment_analysis);
+            
+            // Enable summary button if text is long enough
+            const wordCount = currentEmailText.split(' ').length;
+            summaryBtn.disabled = wordCount < 50;
+            summaryBtn.title = wordCount < 50 ? 'Email muito curto para resumo (mín. 50 palavras)' : '';
+            
+            // Suggested Response
+            resultSuggestion.textContent = data.suggested_response || 'Nenhuma resposta sugerida.';
+            resultCard.style.display = 'block';
+        }
+
+        function showAttachmentAnalysis(attachmentData) {
+            if (!attachmentData) {
+                attachmentContent.innerHTML = '<em class="text-muted">Nenhuma análise de anexos disponível.</em>';
+                return;
+            }
+
+            const hasAttachments = attachmentData.has_attachments_mentioned;
+            const riskLevel = attachmentData.security_risk_level;
+            const riskColors = {
+                'seguro': 'success',
+                'baixo': 'warning', 
+                'medio': 'warning',
+                'alto': 'danger'
+            };
+
+            let html = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Anexos Mencionados:</strong> 
+                            <span class="badge bg-${hasAttachments ? 'success' : 'secondary'}">
+                                ${hasAttachments ? 'Sim' : 'Não'}
+                            </span>
+                            ${hasAttachments ? `(${attachmentData.mention_count})` : ''}
+                        </p>
+                        <p><strong>Risco de Segurança:</strong> 
+                            <span class="badge bg-${riskColors[riskLevel] || 'secondary'}">
+                                ${riskLevel.charAt(0).toUpperCase() + riskLevel.slice(1)}
+                            </span>
+                            <small class="text-muted">(Score: ${attachmentData.attachment_score || 0})</small>
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+            `;
+
+            // File types detected
+            if (Object.keys(attachmentData.file_types_detected || {}).length > 0) {
+                html += '<p><strong>Tipos de Arquivo:</strong><br>';
+                for (const [type, files] of Object.entries(attachmentData.file_types_detected)) {
+                    html += `<span class="badge bg-info me-1">${type}</span>`;
+                }
+                html += '</p>';
+            }
+
+            // Context analysis
+            if (attachmentData.context_analysis?.contexts?.length > 0) {
+                html += '<p><strong>Contexto:</strong><br>';
+                attachmentData.context_analysis.contexts.forEach(context => {
+                    html += `<span class="badge bg-secondary me-1">${context}</span>`;
+                });
+                html += '</p>';
+            }
+
+            html += '</div></div>';
+
+            // Security flags
+            if (attachmentData.security_flags?.length > 0) {
+                html += '<hr><h6 class="text-warning">⚠️ Alertas de Segurança:</h6><ul class="list-unstyled">';
+                attachmentData.security_flags.forEach(flag => {
+                    html += `<li><span class="badge bg-warning text-dark me-2">!</span>${flag}</li>`;
+                });
+                html += '</ul>';
+            }
+
+            // Mentions
+            if (attachmentData.mentions?.length > 0) {
+                html += '<hr><h6>📎 Menções Encontradas:</h6><ul class="list-unstyled">';
+                attachmentData.mentions.slice(0, 3).forEach(mention => {
+                    html += `<li class="text-muted small">"...${mention}..."</li>`;
+                });
+                if (attachmentData.mentions.length > 3) {
+                    html += `<li class="text-muted small"><em>+${attachmentData.mentions.length - 3} menções adicionais</em></li>`;
+                }
+                html += '</ul>';
+            }
+
+            attachmentContent.innerHTML = html;
+        }
+
+        form.addEventListener('submit', async function(event) {
+            event.preventDefault();
+            setLoading(true);
+
+            try {
+                let response;
+                
+                // Verifica se um arquivo foi selecionado
+                if (emailFile.files.length > 0) {
+                    const formData = new FormData();
+                    formData.append('file', emailFile.files[0]);
+                    
+                    response = await fetch('', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    // Para resumo, precisamos ler o arquivo também
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        currentEmailText = e.target.result;
+                    };
+                    reader.readAsText(emailFile.files[0]);
+                } 
+                // Caso contrário, envia o texto
+                else {
+                    const textContent = emailText.value.trim();
+                    
+                    if (!textContent) {
+                        showError('Por favor, forneça um texto ou selecione um arquivo.');
+                        setLoading(false);
+                        return;
+                    }
+                    
+                    currentEmailText = textContent; // Salva para o resumo
+                    
+                    response = await fetch('', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ email_text: textContent })
+                    });
+                }
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                showResult(data);
+
+            } catch (error) {
+                console.error('Erro ao classificar o email:', error);
+                showError(error.message || 'Ocorreu um erro ao processar a solicitação.');
+            } finally {
+                setLoading(false);
+            }
+        });
+
+        // Event listener for Executive Summary button
+        summaryBtn.addEventListener('click', async function() {
+            if (!currentEmailText) {
+                alert('Nenhum texto disponível para resumir.');
+                return;
+            }
+
+            summaryBtn.disabled = true;
+            summaryBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Gerando resumo...';
+
+            try {
+                const response = await fetch('summary/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        email_text: currentEmailText,
+                        max_sentences: 3
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+                }
+
+                const summaryData = await response.json();
+                showSummaryResult(summaryData);
+
+            } catch (error) {
+                console.error('Erro ao gerar resumo:', error);
+                alert('Erro ao gerar resumo executivo: ' + error.message);
+            } finally {
+                summaryBtn.disabled = false;
+                summaryBtn.textContent = '📋 Gerar Resumo Executivo';
+            }
+        });
+
+        function showSummaryResult(data) {
+            let html = `
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <small class="text-muted">
+                            <strong>Redução:</strong> ${data.word_reduction}% 
+                            (${data.original_word_count} → ${data.summary_word_count} palavras)
+                        </small>
+                    </div>
+                    <div class="col-md-6">
+                        <small class="text-muted">
+                            <strong>Relevância:</strong> 
+                            <span class="badge bg-${data.relevance_score > 0.7 ? 'success' : data.relevance_score > 0.4 ? 'warning' : 'danger'}">
+                                ${Math.round(data.relevance_score * 100)}%
+                            </span>
+                        </small>
+                    </div>
+                </div>
+                
+                <h6>📝 Resumo:</h6>
+                <ol>
+            `;
+            
+            data.summary.forEach(sentence => {
+                html += `<li>${sentence}</li>`;
+            });
+            
+            html += '</ol>';
+
+            if (data.key_points && data.key_points.length > 0) {
+                html += '<h6 class="mt-3">🔑 Pontos-Chave:</h6><ul>';
+                data.key_points.forEach(point => {
+                    html += `<li><code>${point}</code></li>`;
+                });
+                html += '</ul>';
+            }
+
+            summaryResult.innerHTML = html;
+            summaryContent.style.display = 'block';
+        }
+
+        // Limpa o outro campo quando um é usado
+        emailText.addEventListener('input', function() {
+            if (this.value.trim()) {
+                emailFile.value = '';
+            }
+        });
+
+        emailFile.addEventListener('change', function() {
+            if (this.files.length > 0) {
+                emailText.value = '';
+            }
+        });
+    </script>
+</body>
+</html>
