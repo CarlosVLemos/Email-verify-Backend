@@ -9,7 +9,7 @@ import docx
 from drf_spectacular.utils import extend_schema, inline_serializer
 from rest_framework import serializers
 
-from .email_scripts import EmailClassifier, EmailResponseGenerator
+from .email_scripts import EmailClassifier, EmailResponseGenerator, AttachmentAnalyzer, ExecutiveSummarizer
 
 # Configura o logging
 logger = logging.getLogger(__name__)
@@ -34,12 +34,10 @@ class EmailClassifierView(TemplateView):
         super().__init__()
         self.email_classifier = EmailClassifier()
         self.response_generator = EmailResponseGenerator()
+        self.attachment_analyzer = AttachmentAnalyzer()
     def get(self, request, *args, **kwargs):
         """Renderiza a página HTML com o formulário"""
         return super().get(request, *args, **kwargs)
-    
-
-
     def extract_text_from_file(self, uploaded_file):
         """
         Extrai texto de diferentes tipos de arquivo.
@@ -150,6 +148,9 @@ class EmailClassifierView(TemplateView):
             # Classifica o email usando a nova arquitetura
             classification = self.email_classifier.classify(email_text)
             
+            # Analisa anexos mencionados (sempre ativo)
+            attachment_analysis = self.attachment_analyzer.analyze(email_text)
+            
             # Gera resposta automática
             suggested_response = self.response_generator.generate_response(
                 classification['categoria'],
@@ -158,7 +159,7 @@ class EmailClassifierView(TemplateView):
                 classification['urgencia']
             )
             
-            logger.info(f"Email classificado: {classification['subcategoria']} - {classification['categoria']} | {classification.get('reasoning', '')}")
+            logger.info(f"Email classificado: {classification['subcategoria']} - {classification['categoria']} | Anexos: {attachment_analysis['has_attachments_mentioned']}")
             
             return JsonResponse({
                 'topic': classification['subcategoria'],
@@ -166,7 +167,8 @@ class EmailClassifierView(TemplateView):
                 'confidence': classification.get('confianca', 0.85),
                 'tone': classification['tom'],
                 'urgency': classification['urgencia'],
-                'suggested_response': suggested_response
+                'suggested_response': suggested_response,
+                'attachment_analysis': attachment_analysis
             })
             
         except Exception as e:
@@ -175,3 +177,117 @@ class EmailClassifierView(TemplateView):
                 {'error': 'Ocorreu um erro ao processar o email.', 'details': str(e)}, 
                 status=500
             )
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class ExecutiveSummaryView(TemplateView):
+    """
+    Endpoint opcional para gerar resumo executivo de emails longos.
+    Usado sob demanda para economizar recursos.
+    """
+    
+    def __init__(self):
+        super().__init__()
+        self.summarizer = ExecutiveSummarizer()
+    
+    @extend_schema(
+        summary="Gera um resumo executivo de um email longo",
+        description="""
+        Este endpoint cria um resumo conciso de emails extensos, extraindo os pontos mais relevantes.
+        
+        **Funcionalidades:**
+        1. **Resumo Inteligente:** Seleciona as frases mais importantes usando algoritmo de relevância
+        2. **Pontos-Chave:** Extrai informações específicas como prazos, valores, ações requeridas
+        3. **Redução de Palavras:** Mostra percentual de redução do texto original
+        4. **Score de Relevância:** Indica qualidade do resumo gerado
+        
+        **Parâmetros opcionais:**
+        - `max_sentences`: Número máximo de frases no resumo (padrão: 3)
+        
+        Ideal para emails com mais de 100 palavras.
+        """,
+        request={
+            "application/json": inline_serializer(
+                name="SummaryPayload",
+                fields={
+                    "email_text": serializers.CharField(help_text="Texto do email para resumir"),
+                    "max_sentences": serializers.IntegerField(required=False, help_text="Máximo de frases no resumo (padrão: 3)")
+                }
+            ),
+            "multipart/form-data": inline_serializer(
+                name="SummaryFilePayload",
+                fields={
+                    "file": serializers.FileField(help_text="Arquivo de email (.txt, .pdf, .docx)"),
+                    "max_sentences": serializers.IntegerField(required=False, help_text="Máximo de frases no resumo (padrão: 3)")
+                }
+            )
+        },
+        responses={
+            200: inline_serializer(
+                name="SummarySuccess",
+                fields={
+                    "summary": serializers.ListField(child=serializers.CharField(), help_text="Frases do resumo"),
+                    "key_points": serializers.ListField(child=serializers.CharField(), help_text="Pontos-chave extraídos"),
+                    "relevance_score": serializers.FloatField(help_text="Score de relevância (0-1)"),
+                    "word_reduction": serializers.FloatField(help_text="Percentual de redução de palavras"),
+                    "original_word_count": serializers.IntegerField(help_text="Quantidade de palavras originais"),
+                    "summary_word_count": serializers.IntegerField(help_text="Quantidade de palavras do resumo")
+                }
+            ),
+            400: inline_serializer(name="SummaryError400", fields={"error": serializers.CharField()}),
+            500: inline_serializer(name="SummaryError500", fields={"error": serializers.CharField()})
+        }
+    )
+    def post(self, request, *args, **kwargs):
+        """
+        Gera resumo executivo de email longo.
+        Endpoint opcional, chamado apenas quando necessário.
+        """
+        email_text = ''
+        max_sentences = 3
+        
+        # Extrai parâmetros
+        if 'file' in request.FILES:
+            uploaded_file = request.FILES['file']
+            classifier_view = EmailClassifierView()
+            email_text, error = classifier_view.extract_text_from_file(uploaded_file)
+            if error:
+                return JsonResponse({'error': error}, status=400)
+            max_sentences = int(request.POST.get('max_sentences', 3))
+        else:
+            try:
+                data = json.loads(request.body)
+                email_text = data.get('email_text', '').strip()
+                max_sentences = int(data.get('max_sentences', 3))
+            except (json.JSONDecodeError, ValueError):
+                return JsonResponse({'error': 'Dados inválidos fornecidos.'}, status=400)
+        
+        if not email_text:
+            return JsonResponse({'error': 'Nenhum texto de email fornecido.'}, status=400)
+        
+        # Validação de parâmetros
+        if max_sentences < 1 or max_sentences > 10:
+            return JsonResponse({'error': 'max_sentences deve estar entre 1 e 10.'}, status=400)
+        
+        try:
+            # Gera o resumo
+            result = self.summarizer.summarize(email_text, max_sentences)
+            
+            # Adiciona estatísticas extras
+            original_words = len(email_text.split())
+            summary_words = sum(len(sentence.split()) for sentence in result['summary'])
+            
+            logger.info(f"Resumo gerado: {len(result['summary'])} frases, redução de {result['word_reduction']}%")
+            
+            return JsonResponse({
+                'summary': result['summary'],
+                'key_points': result['key_points'],
+                'relevance_score': round(result['relevance_score'], 3),
+                'word_reduction': result['word_reduction'],
+                'original_word_count': original_words,
+                'summary_word_count': summary_words
+            })
+            
+        except Exception as e:
+            logger.error(f"Erro ao gerar resumo executivo: {e}")
+            return JsonResponse({'error': 'Erro ao processar resumo executivo.'}, status=500)
