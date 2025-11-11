@@ -6,7 +6,6 @@ try:
     from rest_framework import serializers
     HAS_DRF = True
 except ImportError:
-    # Fallback para quando DRF não estiver instalado
     from django.forms import ModelForm
     HAS_DRF = False
 
