@@ -182,3 +182,11 @@ class PerformanceMetricsSerializer(serializers.Serializer):
     
     system_health = serializers.DictField()
     period = serializers.CharField()
+
+
+class EmailAnalyticsListSerializer(serializers.Serializer):
+    """Serializer para listagem paginada de emails"""
+    
+    emails = EmailAnalyticsSummarySerializer(many=True)
+    pagination = serializers.DictField()
+    filters = serializers.DictField()
