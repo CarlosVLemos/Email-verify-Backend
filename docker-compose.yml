@@ -4,6 +4,8 @@ services:
     command: python manage.py runserver 0.0.0.0:8000
     volumes:
       - .:/usr/src/app
+      - huggingface_cache:/home/appuser/.cache/huggingface
+      - site_packages:/usr/local/lib/python3.10/site-packages  
     ports:
       - "8000:8000"
     user: "appuser:appgroup"
@@ -14,6 +16,8 @@ services:
       - DB_USER=postgres
       - DB_PASSWORD=postgres
       - DB_HOST=db
+      - TRANSFORMERS_CACHE=/home/appuser/.cache/huggingface
+
   db:
     image: postgres:13
     volumes:
@@ -25,3 +29,5 @@ services:
 
 volumes:
   postgres_data:
+  huggingface_cache:
+  site_packages:  
