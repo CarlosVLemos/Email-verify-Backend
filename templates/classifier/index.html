@@ -54,15 +54,19 @@
         <div class="card shadow-sm mt-4" id="result-card">
             <div class="card-body">
                 <h2 class="card-title">Resultado da Análise</h2>
-                <div id="results">
-                    <p>
-                        <strong>Categoria:</strong> 
-                        <span id="result-category" class="badge bg-primary"></span>
-                        <span id="result-confidence" class="badge bg-secondary confidence-badge ms-2"></span>
-                    </p>
-                    <p><strong>Resposta Sugerida:</strong></p>
-                    <div id="result-suggestion" class="p-3 bg-light border rounded"></div>
+                <div id="results" class="row mb-3">
+                    <div class="col-md-6">
+                        <p><strong>Categoria:</strong> <span id="result-category" class="badge"></span></p>
+                        <p><strong>Sub-categoria:</strong> <span id="result-subcategory" class="fw-normal"></span> <span id="result-confidence" class="badge rounded-pill text-bg-light fw-normal"></span></p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Tom:</strong> <span id="result-tone" class="fw-normal"></span></p>
+                        <p><strong>Urgência:</strong> <span id="result-urgency" class="fw-normal"></span></p>
+                    </div>
                 </div>
+                <hr>
+                <h5 class="mt-3">Resposta Sugerida:</h5>
+                <div id="result-suggestion" class="p-3 bg-light border rounded"></div>
             </div>
         </div>
     </div>
@@ -73,8 +77,12 @@
         const emailText = document.getElementById('email-text');
         const emailFile = document.getElementById('email-file');
         const resultCard = document.getElementById('result-card');
+        
+        // Result fields
         const resultCategory = document.getElementById('result-category');
-        const resultConfidence = document.getElementById('result-confidence');
+        const resultSubcategory = document.getElementById('result-subcategory');
+        const resultTone = document.getElementById('result-tone');
+        const resultUrgency = document.getElementById('result-urgency');
         const resultSuggestion = document.getElementById('result-suggestion');
 
         function setLoading(isLoading) {
@@ -89,22 +97,29 @@
         function showError(message) {
             resultCategory.textContent = 'Erro';
             resultCategory.className = 'badge bg-danger';
-            resultConfidence.textContent = '';
+            resultSubcategory.textContent = 'N/A';
+            resultTone.textContent = 'N/A';
+            resultUrgency.textContent = 'N/A';
             resultSuggestion.textContent = message;
             resultCard.style.display = 'block';
         }
 
         function showResult(data) {
-            resultCategory.textContent = data.classification;
-            resultCategory.className = data.classification === 'Produtivo' 
+            // Main Category
+            resultCategory.textContent = data.category || 'N/A';
+            resultCategory.className = data.category === 'Produtivo' 
                 ? 'badge bg-success' 
-                : 'badge bg-warning';
+                : data.category === 'Social'
+                ? 'badge bg-info'
+                : 'badge bg-warning text-dark';
+
+            // Detailed classification
+            resultSubcategory.textContent = data.topic || 'N/A';
+            resultTone.textContent = data.tone || 'N/A';
+            resultUrgency.textContent = data.urgency || 'N/A';
             
-            if (data.confidence) {
-                resultConfidence.textContent = `${data.confidence}% de confiança`;
-            }
-            
-            resultSuggestion.textContent = data.suggested_response;
+            // Suggested Response
+            resultSuggestion.textContent = data.suggested_response || 'Nenhuma resposta sugerida.';
             resultCard.style.display = 'block';
         }
 

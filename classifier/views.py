@@ -2,13 +2,14 @@ from django.views.generic import TemplateView
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
-from transformers import pipeline
 import logging
 import json
 import pdfplumber
-import docx  # python-docx para arquivos .docx
+import docx
 from drf_spectacular.utils import extend_schema, inline_serializer
 from rest_framework import serializers
+
+from .email_scripts import EmailClassifier, EmailResponseGenerator
 
 # Configura o logging
 logger = logging.getLogger(__name__)
@@ -17,33 +18,27 @@ logger = logging.getLogger(__name__)
 @method_decorator(csrf_exempt, name='dispatch')
 class EmailClassifierView(TemplateView):
     """
-    Lida com a renderização da página e a classificação de emails.
-    Suporta texto direto, arquivos .txt, .pdf e .docx
+    View principal para classificação de emails com IA.
+    
+    Responsabilidades:
+    - Renderizar interface web
+    - Processar uploads de arquivos
+    - Orquestrar classificação e geração de resposta
+    - Retornar resultados em JSON
+    
+    Suporta texto direto e arquivos .txt, .pdf, .docx
     """
     template_name = 'classifier/index.html'
     
-    # Carrega o modelo de classificação zero-shot uma vez para a classe
-    classifier = None
-    
-    @classmethod
-    def get_classifier(cls):
-        """Carrega o modelo de classificação apenas quando necessário"""
-        if cls.classifier is None:
-            try:
-                cls.classifier = pipeline(
-                    "zero-shot-classification", 
-                    model="facebook/bart-large-mnli"
-                )
-                logger.info("Modelo de classificação carregado com sucesso.")
-            except Exception as e:
-                logger.error(f"Erro ao carregar o modelo de NLP: {e}")
-        return cls.classifier
-
+    def __init__(self):
+        super().__init__()
+        self.email_classifier = EmailClassifier()
+        self.response_generator = EmailResponseGenerator()
     def get(self, request, *args, **kwargs):
-        """
-        Renderiza a página HTML com o formulário.
-        """
+        """Renderiza a página HTML com o formulário"""
         return super().get(request, *args, **kwargs)
+    
+
 
     def extract_text_from_file(self, uploaded_file):
         """
@@ -84,136 +79,93 @@ class EmailClassifierView(TemplateView):
             return None, f'Erro ao ler o arquivo: {str(e)}'
 
     @extend_schema(
-        summary="Classifica o texto de um email como Produtivo ou Improdutivo",
+        summary="Classifica o texto de um email, detecta o tom e a urgência.",
         description="""
-        Este endpoint classifica um email em duas categorias: **Produtivo** ou **Improdutivo**.
+        Este endpoint realiza uma análise completa de um texto de email, fornecendo múltiplas camadas de classificação.
         
-        Você pode enviar o texto do email de duas maneiras:
+        **Funcionalidades:**
+        1.  **Classificação de Tópico:** Categoriza o email em subcategorias detalhadas (ex: `Suporte Técnico`, `Spam`).
+        2.  **Detecção de Tom:** Analisa o sentimento do texto (`Positivo`, `Negativo`, `Neutro`).
+        3.  **Análise de Urgência:** Determina se o conteúdo sugere urgência (`Urgente`, `Não Urgente`).
+
+        **Como Usar:**
+        - **Via JSON:** Envie um corpo `{"email_text": "..."}` com `Content-Type: application/json`.
+        - **Via Arquivo:** Envie um arquivo (`.txt`, `.pdf`, `.docx`) usando `Content-Type: multipart/form-data`.
         
-        1.  **Corpo da Requisição (JSON):**
-            - `Content-Type: application/json`
-            - Corpo: `{ "email_text": "O texto do seu email aqui..." }`
-        
-        2.  **Upload de Arquivo (Multipart):**
-            - `Content-Type: multipart/form-data`
-            - Corpo: Um campo `file` com um arquivo do tipo `.txt`, `.pdf`, ou `.docx`.
-            
-        A API retornará a classificação, um nível de confiança (0 a 100) e uma sugestão de resposta.
+        A API retornará uma estrutura JSON completa com todas as análises.
         """,
-        # Descreve os possíveis corpos da requisição
         request={
             "application/json": inline_serializer(
                 name="EmailTextPayload",
-                fields={
-                    "email_text": serializers.CharField(help_text="O texto do email a ser classificado.")
-                }
+                fields={"email_text": serializers.CharField(help_text="O texto do email a ser classificado.")}
             ),
             "multipart/form-data": inline_serializer(
                 name="EmailFilePayload",
-                fields={
-                    "file": serializers.FileField(help_text="Arquivo de email (.txt, .pdf, .docx) para classificar.")
-                }
+                fields={"file": serializers.FileField(help_text="Arquivo de email (.txt, .pdf, .docx).")}
             )
         },
-        # Descreve as possíveis respostas
         responses={
             200: inline_serializer(
-                name="ClassificationSuccess",
+                name="FullClassificationSuccess",
                 fields={
-                    "classification": serializers.CharField(help_text="Resultado da classificação ('Produtivo' ou 'Improdutivo')."),
-                    "confidence": serializers.FloatField(help_text="Confiança da classificação em porcentagem (ex: 99.87)."),
-                    "suggested_response": serializers.CharField(help_text="Uma sugestão de resposta baseada na classificação."),
+                    "topic": serializers.CharField(help_text="Subcategoria classificada (ex: 'Dúvida', 'Agradecimento')."),
+                    "category": serializers.CharField(help_text="Categoria principal ('Produtivo', 'Social', 'Improdutivo')."),
+                    "confidence": serializers.FloatField(allow_null=True, help_text="Confiança da classificação (não aplicável para este modelo)."),
+                    "tone": serializers.CharField(help_text="Tom detectado ('Positivo', 'Negativo', 'Neutro')."),
+                    "urgency": serializers.CharField(help_text="Nível de urgência ('Urgente' ou 'Não Urgente')."),
+                    "suggested_response": serializers.CharField(help_text="Sugestão de resposta baseada na análise."),
                 }
             ),
-            400: inline_serializer(
-                name="ClassificationError400",
-                fields={
-                    "error": serializers.CharField(help_text="Descrição do erro (ex: 'Nenhum texto de email fornecido.').")
-                }
-            ),
-            500: inline_serializer(
-                name="ClassificationError500",
-                fields={
-                    "error": serializers.CharField(default="Ocorreu um erro ao processar o email."),
-                    "details": serializers.CharField(help_text="Detalhes técnicos do erro.")
-                }
-            ),
-            503: inline_serializer(
-                name="ClassificationError503",
-                fields={
-                    "error": serializers.CharField(default="Modelo de classificação não está disponível.")
-                }
-            )
+            400: inline_serializer(name="Error400", fields={"error": serializers.CharField()}),
+            500: inline_serializer(name="Error500", fields={"error": serializers.CharField(), "details": serializers.CharField()}),
+            503: inline_serializer(name="Error503", fields={"error": serializers.CharField()})
         }
     )
     def post(self, request, *args, **kwargs):
         """
-        Recebe o texto do email (via JSON ou upload de arquivo), 
-        classifica e retorna o resultado em JSON.
+        Recebe o texto do email, classifica e retorna resultado em JSON.
+        Usa classificação baseada em regras para maior confiabilidade.
         """
         email_text = ''
         
-        # Verifica se um arquivo foi enviado
+        # Processa entrada (arquivo ou texto)
         if 'file' in request.FILES:
             uploaded_file = request.FILES['file']
             email_text, error = self.extract_text_from_file(uploaded_file)
-            
             if error:
                 return JsonResponse({'error': error}, status=400)
-            
             if not email_text:
-                return JsonResponse(
-                    {'error': 'O arquivo está vazio ou não contém texto extraível.'},
-                    status=400
-                )
-        
-        # Se nenhum arquivo foi enviado, tenta obter o texto do corpo do JSON
+                return JsonResponse({'error': 'O arquivo está vazio ou não contém texto extraível.'}, status=400)
         else:
             try:
                 data = json.loads(request.body)
                 email_text = data.get('email_text', '').strip()
             except json.JSONDecodeError:
-                return JsonResponse(
-                    {'error': 'JSON inválido ou nenhum dado fornecido.'},
-                    status=400
-                )
+                return JsonResponse({'error': 'JSON inválido ou nenhum dado fornecido.'}, status=400)
         
-        # Valida se há texto para processar
         if not email_text:
-            return JsonResponse(
-                {'error': 'Nenhum texto de email fornecido.'}, 
-                status=400
-            )
+            return JsonResponse({'error': 'Nenhum texto de email fornecido.'}, status=400)
         
-        # Obtém o classificador
-        classifier = self.get_classifier()
-        
-        if not classifier:
-            return JsonResponse(
-                {'error': 'Modelo de classificação não está disponível.'}, 
-                status=503
-            )
-        
-        # Processa a classificação
         try:
-            candidate_labels = ["Produtivo", "Improdutivo"]
-            classification_result = classifier(email_text, candidate_labels)
+            # Classifica o email usando a nova arquitetura
+            classification = self.email_classifier.classify(email_text)
             
-            classification = classification_result['labels'][0]
-            confidence = classification_result['scores'][0]
+            # Gera resposta automática
+            suggested_response = self.response_generator.generate_response(
+                classification['categoria'],
+                classification['subcategoria'],
+                classification['tom'],
+                classification['urgencia']
+            )
             
-            # Define a resposta sugerida baseada na classificação
-            if classification == "Produtivo":
-                suggested_response = (
-                    "Obrigado pelo seu email. Estamos analisando sua solicitação "
-                    "e retornaremos em breve."
-                )
-            else:
-                suggested_response = "Obrigado pela sua mensagem!"
+            logger.info(f"Email classificado: {classification['subcategoria']} - {classification['categoria']} | {classification.get('reasoning', '')}")
             
             return JsonResponse({
-                'classification': classification,
-                'confidence': round(confidence * 100, 2),  # Confiança em %
+                'topic': classification['subcategoria'],
+                'category': classification['categoria'],
+                'confidence': classification.get('confianca', 0.85),
+                'tone': classification['tom'],
+                'urgency': classification['urgencia'],
                 'suggested_response': suggested_response
             })
             
