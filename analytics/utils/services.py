@@ -31,27 +31,19 @@ class EmailAnalyticsData:
         self.processing_time = processing_time
         self.source = source
         self.request_data = request_data or {}
-        
-        # Extrai dados principais
         self.sender_email = self._extract_sender_email()
         self.sender_name = self._extract_sender_name()
         self.sender_domain = self._extract_sender_domain()
-        
-        # Dados da classificação
         self.category = self._extract_category()
         self.subcategory = self._extract_subcategory()
         self.tone = self._extract_tone()
         self.urgency = self._extract_urgency()
         self.confidence_score = self._extract_confidence()
-        
-        # Dados do conteúdo
         self.word_count = self._extract_word_count()
         self.char_count = self._extract_char_count()
         self.has_attachments = self._extract_attachments()
         self.attachment_score = self._extract_attachment_score()
         self.keywords_detected = self._extract_keywords()
-        
-        # Dados técnicos
         self.technical_data = self._build_technical_data()
     
     def _extract_sender_email(self):
@@ -65,8 +57,6 @@ class EmailAnalyticsData:
     def _extract_sender_domain(self):
         """Extrai domínio do remetente"""
         domain = self.classification_result.get('sender_domain') or self.request_data.get('sender_domain')
-        
-        # Tenta extrair de sender_email se domain não fornecido
         if not domain and self.sender_email:
             try:
                 domain = self.sender_email.split('@')[1].lower()
@@ -78,8 +68,6 @@ class EmailAnalyticsData:
     def _extract_category(self):
         """Extrai categoria com validação"""
         category = self.classification_result.get('categoria') or self.classification_result.get('category')
-        
-        # Validação flexível - corrige valores conhecidos
         if category:
             category_lower = category.lower()
             if 'produtiv' in category_lower:
@@ -99,8 +87,6 @@ class EmailAnalyticsData:
     def _extract_tone(self):
         """Extrai tom com padronização"""
         tone = self.classification_result.get('tom') or self.classification_result.get('tone')
-        
-        # Padroniza valores conhecidos
         if tone:
             tone_lower = tone.lower()
             if 'positiv' in tone_lower:
@@ -116,8 +102,6 @@ class EmailAnalyticsData:
         """Extrai urgência com padronização"""
         urgency = (self.classification_result.get('urgencia') or 
                   self.classification_result.get('urgency'))
-        
-        # Padroniza valores conhecidos
         if urgency:
             urgency_lower = urgency.lower()
             if 'alta' in urgency_lower or 'high' in urgency_lower or 'urgent' in urgency_lower:
@@ -137,18 +121,15 @@ class EmailAnalyticsData:
         
         try:
             confidence = float(confidence or 0)
-            # Garante que está no range 0-1
             return max(0.0, min(1.0, confidence))
         except (ValueError, TypeError):
-            return 0.85  # Default razoável
+            return 0.85  
     
     def _extract_word_count(self):
         """Extrai contagem de palavras"""
         word_count = self.classification_result.get('word_count')
         if word_count is not None:
             return max(0, int(word_count))
-        
-        # Tenta calcular a partir do texto se disponível
         text = (self.classification_result.get('text') or 
                 self.classification_result.get('email_text') or '')
         return len(text.split()) if text else 0
@@ -158,15 +139,12 @@ class EmailAnalyticsData:
         char_count = self.classification_result.get('char_count')
         if char_count is not None:
             return max(0, int(char_count))
-        
-        # Tenta calcular a partir do texto
         text = (self.classification_result.get('text') or 
                 self.classification_result.get('email_text') or '')
         return len(text) if text else 0
     
     def _extract_attachments(self):
         """Extrai informação sobre anexos"""
-        # Múltiplas fontes possíveis
         has_attachments = (
             self.classification_result.get('has_attachments') or
             self.classification_result.get('has_attachments_mentioned') or
@@ -176,7 +154,6 @@ class EmailAnalyticsData:
     
     def _extract_attachment_score(self):
         """Extrai score de anexos"""
-        # Tenta múltiplas fontes
         score = (
             self.classification_result.get('attachment_score') or
             self.classification_result.get('attachment_analysis', {}).get('score') or
@@ -196,13 +173,11 @@ class EmailAnalyticsData:
             []
         )
         
-        # Garante que é uma lista de strings
         if isinstance(keywords, str):
             keywords = [keywords]
         elif not isinstance(keywords, list):
             keywords = []
         
-        # Limita quantidade e sanitiza
         return [str(kw).lower().strip() for kw in keywords[:10] if kw]
     
     def _build_technical_data(self):
@@ -212,16 +187,12 @@ class EmailAnalyticsData:
             'source': self.source,
             'timestamp': timezone.now().isoformat(),
         }
-        
-        # Adiciona dados do request se disponível
         if self.request_data:
             technical.update({
                 'user_agent': self.request_data.get('user_agent'),
                 'ip_address': self.request_data.get('ip_address'),
                 'method': self.request_data.get('method', 'unknown'),
             })
-        
-        # Adiciona dados específicos do source
         if self.source == 'batch':
             technical['batch_id'] = self.request_data.get('batch_id')
             technical['email_id'] = self.request_data.get('email_id')
@@ -234,8 +205,6 @@ class EmailAnalyticsData:
         Returns: (is_valid, errors)
         """
         errors = []
-        
-        # Validações essenciais
         if not self.category:
             errors.append('Category is required')
         
@@ -285,26 +254,17 @@ class AnalyticsService:
         Returns: (analytics_instance, success, errors)
         """
         try:
-            # Cria objeto de dados com validações
             email_data = EmailAnalyticsData(
                 classification_result=classification_result,
                 processing_time=processing_time,
                 source=source,
                 request_data=request_data
             )
-            
-            # Validação flexível - loga warnings mas continua
             is_valid, validation_errors = email_data.is_valid()
             if not is_valid:
                 logger.warning(f"Analytics data validation warnings: {validation_errors}")
-                # Continua salvando mesmo com warnings
-            
-            # Salva em transação atômica
             with transaction.atomic():
-                # Salva registro principal
                 analytics = self._create_email_analytics(email_data)
-                
-                # Atualiza estatísticas agregadas
                 self.aggregator.update_all_stats(analytics)
                 
                 logger.info(f"Analytics saved successfully: {analytics.id}")
@@ -374,8 +334,6 @@ class AnalyticsAggregator:
                     'avg_processing_time': 0.0,
                 }
             )
-            
-            # Atualiza contadores
             cat_stats.total_count = F('total_count') + 1
             cat_stats.last_7_days = F('last_7_days') + 1
             cat_stats.last_30_days = F('last_30_days') + 1
@@ -404,18 +362,13 @@ class AnalyticsAggregator:
                     'last_seen': email_analytics.processed_at,
                 }
             )
-            
-            # Atualiza contadores
             sender_stats.total_count = F('total_count') + 1
             if email_analytics.category == 'Produtivo':
                 sender_stats.productive_count = F('productive_count') + 1
             else:
                 sender_stats.unproductive_count = F('unproductive_count') + 1
-            
             sender_stats.last_seen = email_analytics.processed_at
             sender_stats.save()
-            
-            # Recalcula taxa de produtividade
             sender_stats.refresh_from_db()
             sender_stats.productivity_rate = (
                 sender_stats.productive_count / max(sender_stats.total_count, 1)
@@ -459,8 +412,6 @@ class AnalyticsAggregator:
         
         try:
             today = email_analytics.processed_at.date()
-            
-            # Dados diários
             daily_data, created = TimeSeriesData.objects.get_or_create(
                 date=today,
                 hour=0,
@@ -479,8 +430,6 @@ class AnalyticsAggregator:
                 daily_data.unproductive_emails = F('unproductive_emails') + 1
             
             daily_data.save()
-            
-            # Recalcula taxa de produtividade
             daily_data.refresh_from_db()
             daily_data.productivity_rate = (
                 daily_data.productive_emails / max(daily_data.total_emails, 1)

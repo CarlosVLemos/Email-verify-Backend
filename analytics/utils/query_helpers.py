@@ -45,8 +45,6 @@ class AnalyticsQueryBuilder:
                 avg_word_count=Avg('word_count'),
                 emails_with_attachments=Count('id', filter=Q(has_attachments=True))
             )
-            
-            # Calcula métricas derivadas
             total = stats['total_count'] or 0
             productive = stats['productive'] or 0
             unproductive = stats['unproductive'] or 0
@@ -172,7 +170,6 @@ class AnalyticsQueryBuilder:
         from analytics.models import EmailAnalytics
         
         try:
-            # Ranges de tempo de processamento
             processing_ranges = [
                 (0, 100, '< 100ms'),
                 (100, 500, '100-500ms'),
@@ -180,8 +177,6 @@ class AnalyticsQueryBuilder:
                 (1000, 5000, '1-5s'),
                 (5000, float('inf'), '> 5s')
             ]
-            
-            # Ranges de confiança
             confidence_ranges = [
                 (0.0, 0.5, 'Baixa (< 50%)'),
                 (0.5, 0.7, 'Média (50-70%)'),
@@ -191,8 +186,6 @@ class AnalyticsQueryBuilder:
             
             base_queryset = EmailAnalytics.objects.filter(processed_at__gte=date_from)
             total_emails = base_queryset.count()
-            
-            # Calcula distribuições
             processing_dist = []
             for min_time, max_time, label in processing_ranges:
                 if max_time == float('inf'):
@@ -268,21 +261,16 @@ class AnalyticsFormatter:
                     'best_period': {},
                     'worst_period': {}
                 }
-            
-            # Compara primeiro e último período
             first_rate = timeline_data[0].get('productivity_rate', 0)
             last_rate = timeline_data[-1].get('productivity_rate', 0)
             total_change = last_rate - first_rate
-            
-            # Determina direção da tendência
+
             if total_change > 2:
                 trend_direction = 'increasing'
             elif total_change < -2:
                 trend_direction = 'decreasing'
             else:
                 trend_direction = 'stable'
-            
-            # Encontra melhor e pior período
             best_period = max(timeline_data, key=lambda x: x.get('productivity_rate', 0))
             worst_period = min(timeline_data, key=lambda x: x.get('productivity_rate', 0))
             

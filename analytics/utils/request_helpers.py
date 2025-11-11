@@ -111,8 +111,6 @@ class AnalyticsResponseHelper:
             'status': 'success',
             'timestamp': timezone.now().isoformat(),
         }
-        
-        # Adiciona dados principais
         if isinstance(data, dict):
             response.update(data)
         else:
@@ -176,7 +174,6 @@ class AnalyticsErrorHandler:
         """
         error_msg = f"Error in {view_name}"
         
-        # Log detalhado para debugging
         logger.error(
             f"{error_msg}: {str(error)}",
             extra={
@@ -187,7 +184,6 @@ class AnalyticsErrorHandler:
             exc_info=True
         )
         
-        # Response user-friendly
         return AnalyticsResponseHelper.create_error_response(
             message=f"Erro interno no endpoint {view_name}",
             status_code=500,
