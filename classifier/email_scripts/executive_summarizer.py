@@ -90,7 +90,6 @@ class ExecutiveSummarizer:
         sentences, current = [], ""  
         for char in text:
             current += char
-            # Usando operador walrus para condição mais concisa
             if char in self.sentence_endings and (stripped := current.strip()) and len(stripped) > 10:
                 if not re.search(r'\b[A-Z]\.$', stripped):
                     sentences.append(stripped)
@@ -153,8 +152,6 @@ class ExecutiveSummarizer:
     def _extract_key_points(self, text: str) -> List[str]:
         text_lower = text.lower()
         key_points = []
-        
-        # Padrões melhorados e mais específicos
         patterns = {
             'prazo_deadline': [
                 r'prazo\s+até\s+[\w\d/\s]+',
@@ -192,12 +189,11 @@ class ExecutiveSummarizer:
             ]
         }
         
-        # Extrai pontos por categoria
         for category, pattern_list in patterns.items():
             category_points = []
             for pattern in pattern_list:
                 matches = re.findall(pattern, text_lower, re.IGNORECASE)
-                for match in matches[:2]:  # Máximo 2 por categoria
+                for match in matches[:2]:
                     cleaned_match = match.strip()
                     if isinstance(match, tuple):
                         cleaned_match = ' '.join(match).strip()
@@ -205,9 +201,8 @@ class ExecutiveSummarizer:
                     if len(cleaned_match) > 8 and cleaned_match not in category_points:
                         category_points.append(cleaned_match)
             
-            key_points.extend(category_points[:2])  # Máximo 2 por categoria
+            key_points.extend(category_points[:2])
         
-        # Remove duplicatas preservando ordem
         seen = set()
         unique_points = []
         for point in key_points:
@@ -215,13 +210,11 @@ class ExecutiveSummarizer:
                 seen.add(point)
                 unique_points.append(point.capitalize())
         
-        return unique_points[:6]  # Máximo 6 pontos totais
+        return unique_points[:6]
 
     def _analyze_email_context(self, text: str) -> Dict:
-        """Analisa o contexto geral do email para melhor compreensão"""
         text_lower = text.lower()
         
-        # Tipos de comunicação
         communication_types = {
             'solicitacao': ['solicito', 'preciso', 'gostaria', 'poderia', 'favor'],
             'informativo': ['informo', 'comunico', 'aviso', 'notificação'],
@@ -230,13 +223,11 @@ class ExecutiveSummarizer:
             'coordenacao': ['coordenação', 'alinhamento', 'próximos passos']
         }
         
-        # Detecta tipo principal
         detected_types = [
             comm_type for comm_type, keywords in communication_types.items()
             if any(keyword in text_lower for keyword in keywords)
         ]
         
-        # Sentimento/Tom
         sentiment_indicators = {
             'positivo': ['obrigado', 'agradeço', 'excelente', 'ótimo', 'parabéns'],
             'negativo': ['problema', 'erro', 'falha', 'insatisfeito', 'reclamação'],
@@ -249,12 +240,10 @@ class ExecutiveSummarizer:
                 detected_sentiment = sentiment
                 break
         
-        # Complexidade do email
         word_count = len(text.split())
         sentence_count = text.count('.') + text.count('!') + text.count('?')
         complexity = 'baixa' if word_count < 50 else 'media' if word_count < 150 else 'alta'
         
-        # Indicadores de ação
         action_required = any(action in text_lower for action in [
             'ação necessária', 'preciso', 'solicito', 'favor', 'poderia'
         ])

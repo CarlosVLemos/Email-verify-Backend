@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 import os
 from dotenv import load_dotenv
+import dj_database_url
 
 load_dotenv()
 
@@ -24,13 +25,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = ('django-insecure-my-test-key-for-development-12345')
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-my-test-key-for-development-12345')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-# Simplificamos para o desenvolvimento local. Em produção, use variáveis de ambiente.
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,0.0.0.0').split(',')
 
 
 # Application definition
@@ -43,18 +43,18 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
-    # Third-party apps
     'rest_framework',
     'drf_spectacular',
+    'drf_spectacular_sidecar',
     'corsheaders',
 
-    # Local apps
     'classifier',
     'analytics',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -87,11 +87,14 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+DATABASE_URL = os.getenv('DATABASE_URL', f"sqlite:///{BASE_DIR / 'db.sqlite3'}")
+
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    'default': dj_database_url.parse(
+        DATABASE_URL,
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
 }
 
 
@@ -127,9 +130,9 @@ USE_TZ = True
 
 
 # Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.2/howto/static-files/
-
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Media files
 MEDIA_URL = '/media/'
@@ -140,6 +143,58 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Redis Configuration
+REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+
+# Cache Configuration with Redis
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': REDIS_URL,
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'PARSER_CLASS': 'redis.connection.HiredisParser',
+            'CONNECTION_POOL_CLASS_KWARGS': {
+                'max_connections': 50,
+                'retry_on_timeout': True,
+            },
+            'SOCKET_CONNECT_TIMEOUT': 5,
+            'SOCKET_TIMEOUT': 5,
+            'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',
+            'IGNORE_EXCEPTIONS': True,
+        },
+        'KEY_PREFIX': 'email_classifier',
+        'TIMEOUT': 300,
+    },
+    'analytics': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': os.getenv('REDIS_URL', 'redis://localhost:6379/0').replace('/0', '/1'),
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'PARSER_CLASS': 'redis.connection.HiredisParser',
+        },
+        'KEY_PREFIX': 'analytics',
+        'TIMEOUT': 900,
+    },
+}
+
+# Session Configuration with Redis
+SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+SESSION_CACHE_ALIAS = 'default'
+
+# Celery Configuration - Disabled (uncomment when needed)
+# CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/1')
+# CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:6379/1')
+# CELERY_ACCEPT_CONTENT = ['json']
+# CELERY_TASK_SERIALIZER = 'json'
+# CELERY_RESULT_SERIALIZER = 'json'
+# CELERY_TIMEZONE = 'UTC'
+# CELERY_TASK_TRACK_STARTED = True
+# CELERY_TASK_TIME_LIMIT = 30 * 60
+# CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60
+# CELERY_WORKER_PREFETCH_MULTIPLIER = 4
+# CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000
+
 # Django REST Framework
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
@@ -149,13 +204,117 @@ REST_FRAMEWORK = {
 
 # drf-spectacular
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'Verificador de Email API',
-    'DESCRIPTION': 'API para verificar a validade e o score de emails',
+    'TITLE': 'Email Intelligence API',
+    'DESCRIPTION': """
+# 🤖 Email Intelligence API
+
+API completa para classificação inteligente de emails e analytics de produtividade.
+
+## 🎯 Principais Recursos
+
+### 📧 Email Classifier
+- Classificação automática por categoria e subcategoria
+- Detecção de tom emocional (Positivo/Negativo/Neutro)
+- Análise de urgência (Alta/Média/Baixa)
+- Geração de resposta sugerida
+- Análise de anexos mencionados
+- Resumo executivo de emails longos
+- Processamento em lote (até 50 emails)
+
+### 📊 Analytics Dashboard
+- Métricas de produtividade em tempo real
+- Tendências e gráficos temporais
+- Análise de remetentes e domínios
+- Insights de palavras-chave
+- Métricas de performance do sistema
+- Distribuição de categorias
+- Lista paginada de emails processados
+
+## 🚀 Getting Started
+
+1. **Classificar um email único**:
+   ```bash
+   POST /classifier/classify/
+   {
+     "email_text": "Seu email aqui..."
+   }
+   ```
+
+2. **Ver dashboard de produtividade**:
+   ```bash
+   GET /analytics/dashboard/overview/?days=30
+   ```
+
+3. **Processar emails em lote**:
+   ```bash
+   POST /classifier/batch/
+   {
+     "emails": ["email 1", "email 2", "email 3"]
+   }
+   ```
+
+## 📖 Documentação
+
+- **Swagger UI**: Interface interativa para testar endpoints
+- **ReDoc**: Documentação detalhada alternativa
+- **OpenAPI Schema**: Schema JSON para integração
+
+## 🔗 Links Úteis
+
+- Repositório: https://github.com/CarlosVLemos/Email-verify-Backend
+- Documentação completa: Ver arquivo API_ENDPOINTS.md
+    """,
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
+    'COMPONENT_SPLIT_REQUEST': True,
+    'SCHEMA_PATH_PREFIX': r'/api/',
+    'DEFAULT_GENERATOR_CLASS': 'drf_spectacular.generators.SchemaGenerator',
+    'SERVE_PERMISSIONS': ['rest_framework.permissions.AllowAny'],
+    'SERVE_AUTHENTICATION': None,
+    'SWAGGER_UI_SETTINGS': {
+        'deepLinking': True,
+        'persistAuthorization': True,
+        'displayOperationId': True,
+        'filter': True,
+        'tryItOutEnabled': True,
+    },
+    'SWAGGER_UI_DIST': 'SIDECAR',
+    'SWAGGER_UI_FAVICON_HREF': 'SIDECAR',
+    'REDOC_DIST': 'SIDECAR',
+    'SORT_OPERATIONS': False,
+    'TAGS': [
+        {'name': 'Email Classification', 'description': 'Endpoints para classificação e análise de emails'},
+        {'name': 'Analytics Dashboard', 'description': 'Endpoints para métricas e insights de produtividade'},
+        {'name': 'System', 'description': 'Endpoints de sistema e health check'},
+    ],
 }
 
 CORS_ALLOWED_ORIGINS = [
-    # Adicione aqui os domínios do seu frontend
-    # Ex: "http://localhost:3000", "http://127.0.0.1:3000"
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:5173",  # Vite
+    "http://127.0.0.1:5173",
+]
+
+CORS_ALLOW_CREDENTIALS = True
+
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
 ]

@@ -1,7 +1,3 @@
-"""
-URLs para Analytics API
-Endpoints para dashboard e visualizações
-"""
 from django.urls import path
 from . import views
 

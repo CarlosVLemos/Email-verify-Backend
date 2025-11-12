@@ -30,12 +30,26 @@ class EmailResponseGenerator:
             'Dúvida': "Obrigado pela sua pergunta. Nossa equipe analisará sua dúvida e retornará com esclarecimentos detalhados em breve.",
             'Solicitação': "Recebemos sua solicitação e estamos analisando. Retornaremos com uma resposta assim que possível.",
             'Felicitações': "Muito obrigado pelas felicitações! Ficamos honrados com o reconhecimento e satisfeitos em saber que nosso trabalho foi bem-sucedido.",
-            
-           
             'Agradecimento': "Ficamos muito felizes com seu agradecimento! É uma grande satisfação saber que pudemos ajudá-lo.",
-            'Marketing': "Obrigado pelo interesse demonstrado. Nossa equipe comercial poderá entrar em contato para mais detalhes.", 
+            'Marketing': "Obrigado pelo interesse demonstrado. Nossa equipe comercial poderá entrar em contato para mais detalhes.",
             'Informativo': "Obrigado pela informação. Registramos seu comunicado e tomaremos as medidas apropriadas se necessário.",
-            'Spam': ""  
+            'Spam': "Email identificado como spam - nenhuma resposta será enviada.",
+            'Urgente': {
+                'Alta': "Recebemos sua mensagem urgente e nossa equipe foi imediatamente notificada. Entraremos em contato o mais rápido possível.",
+                'Média': "Sua mensagem foi registrada com prioridade. Nossa equipe entrará em contato em breve.",
+                'Baixa': "Mensagem recebida e registrada. Retornaremos assim que possível."
+            },
+            'Suporte Técnico': {
+                'Alta': "Recebemos sua solicitação de suporte técnico urgente. Nossa equipe técnica foi notificada e entrará em contato imediatamente.",
+                'Média': "Obrigado pelo contato. Nossa equipe de suporte técnico analisará sua questão e retornará em breve.",
+                'Baixa': "Sua solicitação de suporte foi recebida. Retornaremos com uma solução assim que possível."
+            },
+            'Reclamação': {
+                'Alta': "Lamentamos profundamente o inconveniente causado. Sua questão foi marcada como prioridade máxima e nossa equipe especializada entrará em contato imediatamente.",
+                'Média': "Lamentamos o inconveniente. Sua reclamação foi registrada e nossa equipe entrará em contato em breve para resolver a questão.",
+                'Baixa': "Obrigado pelo seu feedback. Registramos sua observação e trabalharemos para melhorar."
+            },
+            'Nova Categoria': "Adicionamos uma nova categoria para respostas mais específicas."
         }
     
     def generate_response(self, categoria, subcategoria, tom, urgencia):
