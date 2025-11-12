@@ -1,6 +1,6 @@
 # 🤖 Email Intelligence API
 
-API REST completa para classificação inteligente de emails e analytics de produtividade usando IA.
+API REST completa para classificação inteligente de emails e analytics de produtividade usando IA e NLP.
 
 ## 🎯 Características Principais
 
@@ -13,6 +13,7 @@ API REST completa para classificação inteligente de emails e analytics de prod
 - ✅ Análise de anexos mencionados
 - ✅ Resumo executivo para emails longos
 - ✅ Processamento em lote (até 50 emails)
+- ✅ Suporte a arquivos (.txt, .pdf, .docx)
 
 ### 📊 Analytics Dashboard
 - ✅ Métricas de produtividade em tempo real
@@ -23,7 +24,66 @@ API REST completa para classificação inteligente de emails e analytics de prod
 - ✅ Distribuição de categorias
 - ✅ Lista paginada com filtros
 
-## 🚀 Quick Start
+### 🐳 Docker & Infrastructure
+- ✅ Docker Compose completo
+- ✅ PostgreSQL 15 como banco de dados
+- ✅ Redis para cache e filas
+- ✅ Celery para processamento assíncrono
+- ✅ Gunicorn como servidor WSGI
+- ✅ Health checks automáticos
+
+## � Docker (Recomendado para Produção)
+
+### Quick Start com Docker
+
+```bash
+# 1. Clone o repositório
+git clone https://github.com/CarlosVLemos/Email-verify-Backend.git
+cd Email-verify-Backend
+
+# 2. Configure variáveis de ambiente
+cp .env.example .env
+# Edite .env com suas configurações
+
+# 3. Build e start
+cd docker
+docker-compose up -d
+
+# 4. Migrations
+docker-compose exec web python manage.py migrate
+
+# 5. Criar superuser
+docker-compose exec web python manage.py createsuperuser
+
+# 6. Acessar
+# API: http://localhost:8000
+# Swagger: http://localhost:8000/api/docs/
+```
+
+### Script Helper
+
+```bash
+cd docker
+chmod +x docker-manager.sh
+
+# Comandos disponíveis
+./docker-manager.sh start          # Inicia todos os serviços
+./docker-manager.sh stop           # Para todos os serviços
+./docker-manager.sh logs-web       # Ver logs do Django
+./docker-manager.sh shell          # Django shell
+./docker-manager.sh migrate        # Rodar migrations
+./docker-manager.sh help           # Ver todos os comandos
+```
+
+### Serviços Docker
+
+- **web** - Django + Gunicorn (porta 8000)
+- **db** - PostgreSQL 15 (porta 5432)
+- **redis** - Redis 7 (porta 6379)
+- **celery_worker** - Processamento assíncrono
+- **celery_beat** - Tarefas agendadas
+
+## 🚀 Desenvolvimento Local (Sem Docker)
 
 ### Pré-requisitos
 - Python 3.8+
@@ -166,13 +226,51 @@ Email-verify-Backend/
 
 ## 🛠️ Tecnologias Utilizadas
 
+### Backend
 - **Django 5.2** - Framework web
-- **Django REST Framework** - API REST
+- **Django REST Framework 3.16** - API REST
 - **drf-spectacular** - Documentação OpenAPI/Swagger
-- **SQLite** - Banco de dados (desenvolvimento)
+- **NLTK** - Processamento de linguagem natural
+
+### Infrastructure
+- **PostgreSQL 15** - Banco de dados
+- **Redis 7** - Cache e message broker
+- **Celery** - Processamento assíncrono
+- **Gunicorn** - WSGI server
+- **Whitenoise** - Static files
+
+### Processamento
 - **pdfplumber** - Extração de texto de PDFs
 - **python-docx** - Leitura de arquivos Word
-- **NLTK** - Processamento de linguagem natural
+- **NLTK** - NLP e stemming
+
+## 📁 Estrutura do Projeto
+
+```
+Email-verify-Backend/
+├── docker/                  # Arquivos Docker
+│   ├── Dockerfile
+│   ├── docker-compose.yml
+│   ├── docker-manager.sh
+│   └── test_endpoints.sh
+├── classifier/              # App de classificação
+│   ├── email_scripts/       # Lógica de IA
+│   ├── serializers.py
+│   ├── views.py
+│   └── urls.py
+├── analytics/               # App de analytics
+│   ├── models.py
+│   ├── views.py
+│   ├── tasks.py             # Celery tasks
+│   ├── cache_decorators.py  # Cache helpers
+│   └── urls.py
+├── core/                    # Configurações
+│   ├── settings.py
+│   ├── celery.py
+│   └── urls.py
+├── manage.py
+└── requirements.txt
+```
 
 ## 📊 Analytics Automático
 
@@ -197,47 +295,57 @@ python manage.py test classifier
 python manage.py test analytics
 ```
 
-## 🐳 Docker (Em Breve)
+## � Roadmap
 
-```bash
-# Build
-docker-compose build
+### ✅ Concluído
+- [x] Classificação inteligente de emails
+- [x] Analytics dashboard completo
+- [x] Docker com PostgreSQL e Redis
+- [x] Cache em múltiplos níveis
+- [x] Processamento assíncrono (Celery)
+- [x] Documentação Swagger completa
+- [x] Suporte a múltiplos formatos de arquivo
 
-# Run
-docker-compose up
-
-# Com Redis cache
-docker-compose -f docker-compose.yml -f docker-compose.redis.yml up
-```
-
-## 🔐 Segurança
-
-### Desenvolvimento
-- CORS aberto para testes locais
-- Debug mode ativado
-- Sem autenticação necessária
-
-### Produção (Recomendações)
-- [ ] Implementar autenticação JWT
-- [ ] Configurar CORS restritivo
-- [ ] Adicionar rate limiting
-- [ ] Usar HTTPS
-- [ ] Configurar SECRET_KEY seguro
-- [ ] Desativar DEBUG mode
-
-## 📈 Roadmap
-
-### Em Desenvolvimento
-- [ ] Sistema de cache com Redis
-- [ ] Rate limiting por IP
+### 🚧 Em Desenvolvimento
 - [ ] Autenticação JWT
+- [ ] Rate limiting por IP
+- [ ] Integração com APIs de IA externas
 
-### Futuro
+### 🔮 Futuro
 - [ ] Machine Learning para classificação
 - [ ] Suporte a mais idiomas
-- [ ] API de webhooks
-- [ ] Dashboard web frontend
-- [ ] Exportação de relatórios PDF/Excel
+- [ ] Dashboard web frontend (React/Vue)
+- [ ] Exportação de relatórios
+- [ ] Webhooks para notificações
+
+## 🔐 Segurança & Produção
+
+### Checklist de Deploy
+
+- [ ] Mudar `SECRET_KEY` no `.env`
+- [ ] Definir `DEBUG=False`
+- [ ] Configurar `ALLOWED_HOSTS` com domínios reais
+- [ ] Usar senhas fortes para PostgreSQL
+- [ ] Configurar CORS com origens específicas
+- [ ] Habilitar HTTPS
+- [ ] Implementar rate limiting
+- [ ] Configurar backup do PostgreSQL
+- [ ] Monitorar logs e métricas
+
+## 🧪 Testes de Endpoints
+
+```bash
+cd docker
+chmod +x test_endpoints.sh
+./test_endpoints.sh
+```
+
+Este script testa:
+- Health check
+- Classificação de email
+- Dashboard overview
+- Resumo executivo
+- Processamento em lote
 
 ## 🤝 Contribuindo
 
