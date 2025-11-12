@@ -11,20 +11,14 @@ try:
     from nltk.corpus import stopwords
     from nltk.tokenize import word_tokenize
     from nltk.stem import RSLPStemmer
-    try:
-        nltk.data.find('tokenizers/punkt')
-    except LookupError:
-        nltk.download('punkt', quiet=True)
     
-    try:
-        nltk.data.find('corpora/stopwords')
-    except LookupError:
-        nltk.download('stopwords', quiet=True)
+    recursos_necessarios = ['punkt', 'punkt_tab', 'stopwords', 'rslp']
     
-    try:
-        nltk.data.find('tokenizers/punkt_tab')
-    except LookupError:
-        nltk.download('punkt_tab', quiet=True)
+    for recurso in recursos_necessarios:
+        try:
+            nltk.download(recurso, quiet=True)
+        except Exception as e:
+            print(f'Aviso ao baixar {recurso}: {e}')
     
     NLTK_AVAILABLE = True
 except ImportError:
@@ -38,12 +32,6 @@ class NLPProcessor:
         self.tokenizer = nltk.tokenize.word_tokenize
         self.stemmer = nltk.stem.RSLPStemmer()
         self.stopwords = set(nltk.corpus.stopwords.words('portuguese'))
-
-        # Certifique-se de que o recurso RSLP está disponível
-        try:
-            nltk.data.find('stemmers/rslp')
-        except LookupError:
-            nltk.download('rslp')
 
     def preprocess(self, text: str) -> Dict[str, any]:
         """
