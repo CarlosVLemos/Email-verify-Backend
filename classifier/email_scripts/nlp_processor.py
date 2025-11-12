@@ -35,13 +35,16 @@ class NLPProcessor:
     """Processador de linguagem natural para emails em português"""
     
     def __init__(self):
-        if NLTK_AVAILABLE:
-            self.stop_words = set(stopwords.words('portuguese'))
-            self.stemmer = RSLPStemmer()
-        else:
-            self.stop_words = set()
-            self.stemmer = None
-    
+        self.tokenizer = nltk.tokenize.word_tokenize
+        self.stemmer = nltk.stem.RSLPStemmer()
+        self.stopwords = set(nltk.corpus.stopwords.words('portuguese'))
+
+        # Certifique-se de que o recurso RSLP está disponível
+        try:
+            nltk.data.find('stemmers/rslp')
+        except LookupError:
+            nltk.download('rslp')
+
     def preprocess(self, text: str) -> Dict[str, any]:
         """
         Pré-processa o texto do email aplicando técnicas de NLP
@@ -59,22 +62,16 @@ class NLPProcessor:
         cleaned = self._normalize_text(text)
         
         # Tokenização
-        if NLTK_AVAILABLE:
-            tokens = word_tokenize(cleaned, language='portuguese')
-        else:
-            tokens = cleaned.split()
+        tokens = self.tokenizer(cleaned, language='portuguese')
         
         # Remoção de stopwords
         filtered_tokens = [
             token for token in tokens 
-            if token.lower() not in self.stop_words and len(token) > 2
+            if token.lower() not in self.stopwords and len(token) > 2
         ]
         
         # Stemming (redução à raiz)
-        if self.stemmer and NLTK_AVAILABLE:
-            stems = [self.stemmer.stem(token) for token in filtered_tokens]
-        else:
-            stems = filtered_tokens
+        stems = [self.stemmer.stem(token) for token in filtered_tokens]
         
         # Métricas
         sentences = re.split(r'[.!?]+', text)
