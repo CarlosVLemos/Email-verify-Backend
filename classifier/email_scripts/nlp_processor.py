@@ -11,8 +11,6 @@ try:
     from nltk.corpus import stopwords
     from nltk.tokenize import word_tokenize
     from nltk.stem import RSLPStemmer
-    
-    # Download necessário na primeira execução
     try:
         nltk.data.find('tokenizers/punkt')
     except LookupError:
@@ -96,41 +94,22 @@ class NLPProcessor:
     
     def _normalize_text(self, text: str) -> str:
         """Normaliza o texto removendo acentos, caracteres especiais etc"""
-        # Remove acentos
         text = ''.join(
             c for c in unicodedata.normalize('NFD', text)
             if unicodedata.category(c) != 'Mn'
         )
-        
-        # Converte para lowercase
         text = text.lower()
-        
-        # Remove URLs
         text = re.sub(r'http\S+|www\S+', '', text)
-        
-        # Remove emails
         text = re.sub(r'\S+@\S+', '', text)
-        
-        # Remove números (opcional, mantém contexto)
-        # text = re.sub(r'\d+', '', text)
-        
-        # Remove pontuação excessiva (mantém . ! ?)
         text = re.sub(r'[^\w\s.!?]', ' ', text)
-        
-        # Remove espaços múltiplos
         text = re.sub(r'\s+', ' ', text).strip()
-        
         return text
     
     def extract_keywords(self, text: str, top_n: int = 10) -> List[str]:
         """Extrai palavras-chave mais relevantes do texto"""
         processed = self.preprocess(text)
-        
-        # Conta frequência de stems
         from collections import Counter
         stem_freq = Counter(processed['stems'])
-        
-        # Retorna top N mais frequentes
         return [word for word, _ in stem_freq.most_common(top_n)]
     
     def get_text_stats(self, text: str) -> Dict[str, any]:

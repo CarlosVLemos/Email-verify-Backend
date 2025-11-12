@@ -16,23 +16,17 @@ import gc
 
 class BatchEmailProcessor:
     def __init__(self):
-        # Cache dos objetos para reutilização
         self.classifier = EmailClassifier()
         self.attachment_analyzer = AttachmentAnalyzer()
         
-        # Configurações otimizadas para Render
         self.max_emails_per_batch = 50
         self.max_file_size_mb = 5
-        self.chunk_size = 10  # Processa 10 emails por vez
+        self.chunk_size = 10  
         
     def process_batch(self, emails: List[str], request_id: str = None) -> Iterator[Dict]:
-        """
-        Processa emails em batch com streaming para evitar timeout
-        """
         total_emails = len(emails)
         processed = 0
         
-        # Processa em chunks para gerenciar memória
         for i in range(0, total_emails, self.chunk_size):
             chunk = emails[i:i + self.chunk_size]
             chunk_results = []
@@ -43,7 +37,6 @@ class BatchEmailProcessor:
                     chunk_results.append(result)
                     processed += 1
                     
-                    # Yield progress update
                     yield {
                         'type': 'progress',
                         'processed': processed,
@@ -61,17 +54,14 @@ class BatchEmailProcessor:
                     chunk_results.append(error_result)
                     processed += 1
             
-            # Yield chunk results
             yield {
                 'type': 'chunk_complete',
                 'results': chunk_results,
                 'chunk_index': i // self.chunk_size
             }
             
-            # Força garbage collection a cada chunk
             gc.collect()
             
-        # Final summary
         yield {
             'type': 'complete',
             'total_processed': processed,
@@ -79,25 +69,17 @@ class BatchEmailProcessor:
         }
     
     def _process_single_email(self, email_text: str, email_id: int) -> Dict:
-        """Processa um único email com todas as análises"""
         if not email_text or len(email_text.strip()) < 10:
             raise ValueError("Email muito curto ou vazio")
         
         start_time = time.time()
         
-        # Classificação principal
         classification = self.classifier.classify(email_text)
-        
-        # Análise de anexos
         attachment_analysis = self.attachment_analyzer.analyze(email_text)
-        
-        # Gera resposta sugerida
         suggested_response = self._generate_suggested_response(classification, email_text)
         
-        # Calcula tempo de processamento
         processing_time = time.time() - start_time
         
-        # 🔥 NOVA FUNCIONALIDADE: Integração com Analytics
         result = {
             'email_id': email_id,
             'email_preview': self._create_preview(email_text),
@@ -112,12 +94,11 @@ class BatchEmailProcessor:
             'processing_time_ms': int(processing_time * 1000)
         }
         
-        # Salva dados para analytics (em background, não bloqueia)
         try:
             from analytics.views import save_email_analytics
             
             analytics_data = {
-                'sender_email': None,  # Não disponível em batch
+                'sender_email': None,  
                 'sender_name': None,
                 'sender_domain': None,
                 'category': classification.get('categoria'),
@@ -140,26 +121,22 @@ class BatchEmailProcessor:
             save_email_analytics(analytics_data, int(processing_time * 1000), source='batch')
             
         except Exception as e:
-            # Analytics não deve quebrar o processamento batch
             print(f"Warning: Falha ao salvar analytics para email {email_id}: {e}")
         
         return result
     
     def _create_preview(self, text: str, max_chars: int = 120) -> str:
-        """Cria preview truncado do email"""
         text = re.sub(r'\s+', ' ', text.strip())
         if len(text) <= max_chars:
             return text
         return text[:max_chars].rsplit(' ', 1)[0] + '...'
     
     def _generate_suggested_response(self, classification: Dict, email_text: str) -> str:
-        """Gera resposta sugerida baseada na classificação"""
         categoria = classification.get('categoria', '').lower()
         subcategoria = classification.get('subcategoria', '').lower()
         tom = classification.get('tom', '').lower()
         urgencia = classification.get('urgencia', '').lower()
         
-        # Templates de resposta otimizados
         if categoria == 'improdutivo':
             if 'spam' in subcategoria:
                 return "Email identificado como spam. Não requer resposta."
@@ -202,13 +179,10 @@ class BatchEmailProcessor:
 
 
 class BatchFileParser:
-    """Parser para diferentes formatos de arquivo"""
     
     @staticmethod
     def parse_file(file_content: bytes, filename: str) -> List[str]:
-        """Parse arquivo para extrair emails"""
         try:
-            # Detecta encoding
             try:
                 content = file_content.decode('utf-8')
             except UnicodeDecodeError:
@@ -220,7 +194,7 @@ class BatchFileParser:
                 return BatchFileParser._parse_json(content)
             elif file_ext == 'csv':
                 return BatchFileParser._parse_csv(content)
-            else:  # .txt ou outros
+            else:
                 return BatchFileParser._parse_text(content)
                 
         except Exception as e:
@@ -228,34 +202,28 @@ class BatchFileParser:
     
     @staticmethod
     def _parse_json(content: str) -> List[str]:
-        """Parse arquivo JSON"""
         data = json.loads(content)
         
         if isinstance(data, list):
             return [str(item) for item in data if str(item).strip()]
         elif isinstance(data, dict):
-            # Procura por chaves comuns
             for key in ['emails', 'messages', 'content', 'text']:
                 if key in data and isinstance(data[key], list):
                     return [str(item) for item in data[key] if str(item).strip()]
-            # Se não encontrou, converte valores em lista
             return [str(value) for value in data.values() if str(value).strip()]
         else:
             return [str(data)] if str(data).strip() else []
     
     @staticmethod
     def _parse_csv(content: str) -> List[str]:
-        """Parse arquivo CSV"""
         emails = []
         reader = csv.reader(io.StringIO(content))
         
         for row_num, row in enumerate(reader):
-            if row_num == 0:  # Header check
-                # Se parece com header, pula
+            if row_num == 0:  
                 if any(header in str(row).lower() for header in ['email', 'message', 'content', 'text']):
                     continue
             
-            # Junta todas as colunas ou pega a primeira com conteúdo
             email_text = ' '.join(cell.strip() for cell in row if cell.strip())
             if email_text and len(email_text) > 10:
                 emails.append(email_text)
@@ -264,21 +232,16 @@ class BatchFileParser:
     
     @staticmethod
     def _parse_text(content: str) -> List[str]:
-        """Parse arquivo de texto simples"""
-        # Divide por múltiplas quebras de linha ou separadores
         separators = ['\n\n\n', '\n---\n', '\n***\n', '\n===\n']
         
-        emails = [content]  # Começa com o conteúdo todo
+        emails = [content]  
         
-        # Tenta dividir por separadores
         for sep in separators:
             if sep in content:
                 emails = content.split(sep)
                 break
         
-        # Se não dividiu bem, tenta por parágrafos grandes
         if len(emails) == 1 and len(content) > 500:
-            # Divide por dupla quebra de linha
             potential_emails = content.split('\n\n')
             emails = [email.strip() for email in potential_emails if len(email.strip()) > 50]
         
@@ -286,12 +249,10 @@ class BatchFileParser:
 
 
 class BatchValidator:
-    """Validador para dados de entrada do batch"""
     
     @staticmethod
     def validate_file(file) -> Dict[str, Union[bool, str]]:
-        """Valida arquivo enviado"""
-        max_size = 5 * 1024 * 1024  # 5MB
+        max_size = 5 * 1024 * 1024  
         allowed_extensions = ['txt', 'csv', 'json']
         
         if file.size > max_size:
@@ -311,7 +272,6 @@ class BatchValidator:
     
     @staticmethod
     def validate_emails(emails: List[str]) -> Dict[str, Union[bool, str, int]]:
-        """Valida lista de emails"""
         max_emails = 50
         
         if not emails:
@@ -323,7 +283,6 @@ class BatchValidator:
                 'error': f'Muitos emails. Máximo: {max_emails}. Encontrados: {len(emails)}'
             }
         
-        # Verifica se emails têm tamanho mínimo
         valid_emails = [email for email in emails if len(email.strip()) >= 10]
         
         if len(valid_emails) == 0:

@@ -4,14 +4,13 @@ Pipeline: NLP preprocessing → Regras → IA (fallback se confiança < 0.70)
 """
 from .email_patterns import EmailPatterns
 from .nlp_processor import NLPProcessor
-from .ai_classifier import AIClassifier
+from .email_response_generator import EmailResponseGenerator
 
 
 class EmailClassifier:
     def __init__(self):
         self.patterns = EmailPatterns()
         self.nlp = NLPProcessor()
-        self.ai = AIClassifier()
         
     def classify(self, text):
         """
@@ -43,14 +42,13 @@ class EmailClassifier:
         rule_result = self._classify_productive(text_lower, text)
         
         # ETAPA 3: IA Fallback (apenas se confiança baixa)
-        if rule_result['confianca'] < 0.70 and self.ai.enabled:
+        if rule_result['confianca'] < 0.70:
             nlp_stats = self.nlp.get_text_stats(text)
-            ai_result = self.ai.classify(text, nlp_stats)
-            
-            if ai_result and ai_result['confianca'] > rule_result['confianca']:
-                ai_result['nlp_stats'] = nlp_stats
-                ai_result['fallback_used'] = True
-                return ai_result
+            hf_result = self._generate_response_with_huggingface(text, nlp_stats)
+            if hf_result and hf_result['confianca'] > rule_result['confianca']:
+                hf_result['nlp_stats'] = nlp_stats
+                hf_result['fallback_used'] = True
+                return hf_result
         
         # Retorna resultado das regras com stats NLP
         rule_result['nlp_stats'] = self.nlp.get_text_stats(text)
@@ -251,3 +249,29 @@ class EmailClassifier:
         # Urgência baixa - apenas para agradecimentos simples ou informativos
         else:
             return 'Baixa'
+    
+    def _generate_response_with_huggingface(self, email_text, nlp_stats):
+        """Gera resposta usando Hugging Face API"""
+        import requests
+        import os
+
+        HF_API_KEY = os.getenv('HF_API_KEY')
+        if not HF_API_KEY:
+            return None
+        
+        API_URL = "https://api-inference.huggingface.co/models/pierreguillou/gpt2-small-portuguese"
+        prompt = f"Email: {email_text}\nEstatísticas: {nlp_stats}\nResposta profissional:"
+        
+        try:
+            response = requests.post(
+                API_URL,
+                headers={"Authorization": f"Bearer {HF_API_KEY}"},
+                json={"inputs": prompt, "parameters": {"max_length": 150}}
+            )
+            if response.status_code == 200:
+                return response.json()[0]['generated_text']
+            else:
+                return None
+        except Exception as e:
+            print(f"Erro ao chamar Hugging Face API: {e}")
+            return None
