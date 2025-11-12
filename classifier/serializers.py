@@ -221,3 +221,17 @@ class HealthCheckSerializer(serializers.Serializer):
     services = serializers.DictField(
         help_text="Status de serviços dependentes (analytics, etc)"
     )
+
+
+class ResponseHelper:
+    """Classe auxiliar para formatação de respostas"""
+    @staticmethod
+    def format_error_response(error_message, field_errors=None):
+        response = {'error': error_message}
+        if field_errors:
+            response['field_errors'] = field_errors
+        return response
+
+    @staticmethod
+    def format_success_response(data):
+        return data
