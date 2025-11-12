@@ -129,24 +129,23 @@ USE_I18N = True
 USE_TZ = True
 
 
-# Static files (CSS, JavaScript, Images)
+
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-# Media files
+
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
+
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Redis Configuration
+
 REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
 
-# Cache Configuration with Redis
+
 CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
@@ -178,7 +177,7 @@ CACHES = {
     },
 }
 
-# Session Configuration with Redis
+
 SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
 SESSION_CACHE_ALIAS = 'default'
 
@@ -195,14 +194,14 @@ SESSION_CACHE_ALIAS = 'default'
 # CELERY_WORKER_PREFETCH_MULTIPLIER = 4
 # CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000
 
-# Django REST Framework
+
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10,
 }
 
-# drf-spectacular
+
 SPECTACULAR_SETTINGS = {
     'TITLE': 'Email Intelligence API',
     'DESCRIPTION': """
@@ -292,7 +291,7 @@ API completa para classificação inteligente de emails e analytics de produtivi
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "http://localhost:5173",  # Vite
+    "http://localhost:5173",  
     "http://127.0.0.1:5173",
 ]
 
