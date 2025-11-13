@@ -18,7 +18,8 @@ from .email_scripts import (
     EmailClassifier,
     EmailResponseGenerator,
     AttachmentAnalyzer,
-    ExecutiveSummarizer
+    ExecutiveSummarizer,
+    EmailThreadParser
 )
 from .email_scripts.batch_processor import BatchEmailProcessor
 from .serializers import (
@@ -54,6 +55,7 @@ class EmailClassifierAPIView(APIView):
         self.email_classifier = EmailClassifier()
         self.response_generator = EmailResponseGenerator()
         self.attachment_analyzer = AttachmentAnalyzer()
+        self.thread_parser = EmailThreadParser()
     
     def extract_text_from_file(self, uploaded_file):
         """
@@ -172,8 +174,19 @@ class EmailClassifierAPIView(APIView):
                         ResponseHelper.format_error_response('O arquivo está vazio ou não contém texto extraível'),
                         status=status.HTTP_400_BAD_REQUEST
                     )
-                sender_email = request.data.get('sender_email')
-                sender_name = request.data.get('sender_name')
+                
+                # Parse thread - detecta múltiplos emails
+                parsed_emails = self.thread_parser.parse(email_text)
+                
+                # Usa apenas o primeiro email se múltiplos forem detectados
+                if parsed_emails and len(parsed_emails) > 0:
+                    email_text = parsed_emails[0].get('body', email_text)
+                    sender_email = request.data.get('sender_email') or parsed_emails[0].get('from')
+                    sender_name = request.data.get('sender_name')
+                else:
+                    # Se o parser não conseguiu extrair nada, usa o texto original
+                    sender_email = request.data.get('sender_email')
+                    sender_name = request.data.get('sender_name')
             else:
                 serializer = EmailTextInputSerializer(data=request.data)
                 if not serializer.is_valid():
@@ -188,21 +201,29 @@ class EmailClassifierAPIView(APIView):
             start_time = time.time()
 
             classification = self.email_classifier.classify(email_text)
-            attachment_analysis = self.attachment_analyzer.analyze(email_text)
-            suggested_response = self.response_generator.generate(
-                email_text,
-                classification['topic'],
-                classification['tone']
+            attachment_raw = self.attachment_analyzer.analyze(email_text)
+            suggested_response = self.response_generator.generate_response(
+                classification['categoria'],
+                classification['subcategoria'],
+                classification['tom'],
+                classification['urgencia']
             )
 
             processing_time = int((time.time() - start_time) * 1000)
 
+            # Mapear attachment_analysis para o formato esperado pelo serializer
+            attachment_analysis = {
+                'has_attachments_mentioned': attachment_raw.get('has_attachments_mentioned', False),
+                'attachment_keywords': attachment_raw.get('mentions', []),
+                'score': attachment_raw.get('mention_count', 0)
+            }
+
             result = {
-                'topic': classification['topic'],
-                'category': classification['category'],
-                'confidence': classification.get('confidence'),
-                'tone': classification['tone'],
-                'urgency': classification['urgency'],
+                'topic': classification['subcategoria'],
+                'category': classification['categoria'],
+                'confidence': classification.get('confianca'),
+                'tone': classification['tom'],
+                'urgency': classification['urgencia'],
                 'suggested_response': suggested_response,
                 'attachment_analysis': attachment_analysis,
                 'word_count': len(email_text.split()),
@@ -341,6 +362,7 @@ class ExecutiveSummaryAPIView(APIView):
                 max_sentences = serializer.validated_data.get('max_sentences', 3)
 
             result = self.summarizer.summarize(email_text, max_sentences)
+            original_words = len(email_text.split())
             summary_words = sum(len(sentence.split()) for sentence in result['summary'])
 
             response_data = {
@@ -348,7 +370,7 @@ class ExecutiveSummaryAPIView(APIView):
                 'key_points': result['key_points'],
                 'relevance_score': round(result['relevance_score'], 3),
                 'word_reduction': round(result['word_reduction'], 2),
-                'original_word_count': result['original_word_count'],
+                'original_word_count': original_words,
                 'summary_word_count': summary_words
             }
 
@@ -381,6 +403,8 @@ class BatchEmailAPIView(APIView):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.processor = BatchEmailProcessor()
+        self.thread_parser = EmailThreadParser()
+        self.email_classifier = EmailClassifier()
     
     @extend_schema(
         summary="Processamento em Lote",
@@ -469,11 +493,56 @@ class BatchEmailAPIView(APIView):
     def post(self, request):
         """Processa emails em lote"""
         try:
+            from .email_scripts.batch_processor import BatchFileParser, BatchValidator
+            
             request_id = str(uuid.uuid4())[:8]
+            emails_list = []
 
             if request.FILES.get('file'):
                 uploaded_file = request.FILES['file']
-                result = self.processor.process_file(uploaded_file, request_id)
+                
+                # Validar arquivo
+                file_validation = BatchValidator.validate_file(uploaded_file)
+                if not file_validation['valid']:
+                    return Response(
+                        ResponseHelper.format_error_response(file_validation['error']),
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Parse do arquivo - primeiro extrai o texto
+                try:
+                    classifier_view = EmailClassifierAPIView()
+                    extracted_text, error = classifier_view.extract_text_from_file(uploaded_file)
+                    
+                    if error:
+                        return Response(
+                            ResponseHelper.format_error_response(error),
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                    
+                    # Tenta detectar múltiplos emails no texto extraído
+                    parsed_emails = self.thread_parser.parse(extracted_text)
+                    
+                    # Se detectou emails com o parser (1 ou mais), usa os bodies extraídos
+                    if parsed_emails and len(parsed_emails) > 0:
+                        emails_list = [email_data.get('body', '') for email_data in parsed_emails if email_data.get('body', '').strip()]
+                        if len(parsed_emails) > 1:
+                            logger.info(f"Thread detectada: {len(emails_list)} emails separados encontrados")
+                        else:
+                            logger.info(f"Email único extraído com sucesso")
+                    else:
+                        # Se o parser não encontrou emails estruturados, tenta parser de formato de arquivo
+                        # Precisa ler o arquivo novamente (reset do ponteiro)
+                        uploaded_file.seek(0)
+                        file_content = uploaded_file.read()
+                        emails_list = BatchFileParser.parse_file(file_content, uploaded_file.name)
+                        logger.info(f"Usando parser de arquivo: {len(emails_list)} emails encontrados")
+                        
+                except Exception as e:
+                    return Response(
+                        ResponseHelper.format_error_response(f'Erro ao processar arquivo: {str(e)}'),
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
             else:
                 serializer = BatchEmailInputSerializer(data=request.data)
                 if not serializer.is_valid():
@@ -482,20 +551,79 @@ class BatchEmailAPIView(APIView):
                         status=status.HTTP_400_BAD_REQUEST
                     )
                 emails_list = serializer.validated_data['emails']
-                result = self.processor.process_list(emails_list, request_id)
 
-            if result.get('status') == 'error':
+            # Validar emails
+            email_validation = BatchValidator.validate_emails(emails_list)
+            if not email_validation['valid']:
                 return Response(
-                    ResponseHelper.format_error_response(result.get('message', 'Erro no processamento')),
+                    ResponseHelper.format_error_response(email_validation['error']),
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            output_serializer = BatchEmailOutputSerializer(data=result)
+            # Processar emails
+            start_time = time.time()
+            results = []
+            successful = 0
+            failed = 0
+            
+            for result_data in self.processor.process_batch(emails_list, request_id):
+                if result_data['type'] == 'chunk_complete':
+                    for item in result_data['results']:
+                        if item['status'] == 'success':
+                            successful += 1
+                            
+                            # Mapear attachment_analysis para o formato esperado
+                            attachment_raw = item.get('attachment_analysis', {})
+                            attachment_analysis = {
+                                'has_attachments_mentioned': attachment_raw.get('has_attachments_mentioned', False),
+                                'attachment_keywords': attachment_raw.get('mentions', []),
+                                'score': attachment_raw.get('mention_count', 0)
+                            }
+                            
+                            results.append({
+                                'email_id': item['email_id'],
+                                'status': 'success',
+                                'classification': {
+                                    'topic': item['classification']['subcategoria'],
+                                    'category': item['classification']['categoria'],
+                                    'confidence': item['classification'].get('confianca'),
+                                    'tone': item['classification']['tom'],
+                                    'urgency': item['classification']['urgencia'],
+                                    'suggested_response': item.get('suggested_response', ''),
+                                    'attachment_analysis': attachment_analysis,
+                                    'word_count': item.get('word_count', 0),
+                                    'char_count': item.get('char_count', 0),
+                                    'processing_time_ms': item.get('processing_time_ms', 0)
+                                },
+                                'preview': item['email_preview']
+                            })
+                        else:
+                            failed += 1
+                            results.append({
+                                'email_id': item['email_id'],
+                                'status': 'error',
+                                'error': item.get('error', 'Erro desconhecido'),
+                                'preview': item.get('email_preview', '')
+                            })
+            
+            total_time = int((time.time() - start_time) * 1000)
+            
+            response_data = {
+                'request_id': request_id,
+                'total_emails': len(emails_list),
+                'successful': successful,
+                'failed': failed,
+                'total_time_ms': total_time,
+                'avg_time_per_email_ms': round(total_time / len(emails_list), 2) if emails_list else 0,
+                'results': results
+            }
+
+            output_serializer = BatchEmailOutputSerializer(data=response_data)
             if output_serializer.is_valid():
                 return Response(ResponseHelper.format_success_response(output_serializer.data), status=status.HTTP_200_OK)
             else:
                 logger.warning(f"Batch output validation failed: {output_serializer.errors}")
-                return Response(ResponseHelper.format_success_response(result), status=status.HTTP_200_OK)
+                return Response(ResponseHelper.format_success_response(response_data), status=status.HTTP_200_OK)
 
         except Exception as e:
             logger.error(f"Erro no batch: {e}", exc_info=True)

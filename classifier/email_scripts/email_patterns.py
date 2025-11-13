@@ -103,6 +103,21 @@ class EmailPatterns:
     }
     
     IMPRODUTIVO = {
+        'entretenimento': [
+            # Conteúdo recreativo/diversão
+            'meme', 'memes', 'vídeo engraçado', 'vídeo hilário', 'chorei de rir',
+            'piada', 'piadas', 'zueira', 'zoeira', 'risada', 'humor',
+            'gatinho', 'gatinhos', 'gato', 'gatos', 'cachorro', 'cachorros', 'pet',
+            'fofo', 'fofinho', 'cute', 'gracinha', 'amor', 'amorzinho',
+            'nada a ver com trabalho', 'pausa no café', 'vale a pausa', 'distração',
+            'alegrar seu dia', 'para relaxar', 'descontrair', 'dar risada',
+            'momento de lazer', 'intervalo', 'descanso mental',
+            'viu esse vídeo', 'viu esse meme', 'viu essa foto',
+            'compartilhando', 'compartilhar', 'achei engraçado',
+            'não resisti', 'tinha que compartilhar', 'muito bom',
+            'receita de bolo', 'dica de filme', 'série nova', 'música',
+            'jogo', 'game', 'gameplay', 'diversão', 'entretenimento'
+        ],
         'spam': [
             'ganhe dinheiro', 'dinheiro grátis', 'renda extra', 'milhões de reais',
             'prêmio em dinheiro', 'sortudo', 'vencedor', 'contemplado', 'grande prêmio',
@@ -135,35 +150,27 @@ class EmailPatterns:
             'click here', 'urgent', 'confidential', 'business proposal'
         ],
         'marketing': [
-            # Ofertas comerciais claras
+
+            'mega promoção', 'super promoção', 'promoção imperdível', 'último dia',
             'oferta especial', 'promoção exclusiva', 'desconto imperdível', 'liquidação',
+            '70% desconto', '50% desconto', 'desconto de', '% off',
+            'aproveite antes que acabe', 'últimas horas', 'hoje é o último dia',
             'compre agora', 'adquira já', 'aproveite a oferta', 'não perca',
+            'acesse agora', 'clique para comprar', 'visite nosso site',
             'últimas peças', 'últimas vagas', 'oferta limitada', 'tempo limitado',
-            
-            # Vendas e e-commerce
             'carrinho de compras', 'finalizar compra', 'checkout', 'adicionar ao carrinho',
             'frete grátis', 'entrega gratuita', 'parcelamento sem juros', 'à vista',
             'cashback', 'pontos de fidelidade', 'programa de recompensas',
-            
-            # Newsletter e marketing digital
             'newsletter', 'boletim informativo', 'novidades da loja', 'novidades do site',
             'inscreva-se', 'cadastre-se', 'receba ofertas', 'seja o primeiro',
             'curtir', 'compartilhar', 'seguir nas redes', 'like', 'comentar',
-            
-            # Conteúdo promocional
             'catálogo', 'vitrine virtual', 'showroom online', 'lançamento do produto',
             'nova coleção', 'temporada', 'black friday', 'cyber monday',
             'dia das mães', 'dia dos pais', 'natal', 'ano novo',
-            
-            # Webinars comerciais e eventos
             'webinar gratuito', 'workshop pago', 'curso online', 'treinamento comercial',
             'evento de lançamento', 'feira virtual', 'exposição online',
-            
-            # Termos legais de marketing
             'descadastrar', 'unsubscribe', 'cancelar inscrição', 'parar de receber',
             'política de privacidade comercial', 'termos comerciais', 'lgpd marketing',
-            
-            # Indicadores de conteúdo promocional
             'patrocinado', 'anúncio', 'publicidade', 'propaganda', 'divulgação comercial'
         ],
         'agradecimento': [
@@ -262,6 +269,71 @@ class EmailPatterns:
         'vencedor de', 'beneficiário de', 'herdeiro de', 'sorteio automático',
         'clique para resgatar', 'confirme seus dados', 'taxa de liberação'
     ]
+    
+    # 🆕 Padrões de contexto com REGEX para detecção precisa
+    CONTEXT_PATTERNS = {
+        'marketing_strong': [
+            r'\d+%\s*(de\s*)?desconto',  # "50% desconto", "70% de desconto"
+            r'desconto\s+de\s+\d+%',      # "desconto de 50%"
+            r'compre\s+\d+\s+leve\s+\d+', # "compre 1 leve 2"
+            r'frete\s+gr[aá]tis',         # "frete grátis"
+            r'por\s+apenas\s+R?\$?\s*\d+', # "por apenas R$ 99"
+            r'[uú]ltimas?\s+unidades?',   # "últimas unidades"
+            r'mega\s+promo[çc][aã]o',     # "mega promoção"
+            r'super\s+oferta',            # "super oferta"
+            r'oferta\s+imperd[ií]vel',    # "oferta imperdível"
+            r'at[eé]\s+\d+%\s+off',       # "até 70% off"
+        ],
+        'marketing_negative': [  # Indicadores de que NÃO é marketing comercial
+            r'reuni[aã]o\s+(de|do|sobre)\s+trabalho',
+            r'projeto\s+(interno|da\s+empresa)',
+            r'equipe\s+(de|do)\s+\w+',  # "equipe de desenvolvimento"
+            r'discuss[aã]o\s+sobre',
+            r'planejamento\s+de',
+        ],
+        'spam_strong': [
+            r'voc[eê]\s+ganhou',          # "você ganhou"
+            r'parab[eé]ns!?\s+voc[eê]\s+foi\s+selecionado',
+            r'clique\s+aqui\s+(agora|j[aá])',
+            r'confirme\s+seus\s+dados',
+            r'atualize\s+suas\s+informa[çc][õo]es',
+            r'sua\s+conta\s+foi\s+bloqueada',
+            r'taxa\s+de\s+libera[çc][aã]o',
+        ],
+        'work_context': [  # Contexto de trabalho genuíno
+            r'(nossa|nosso)\s+(equipe|time|projeto)',
+            r'reuni[aã]o\s+(de|sobre|do)',
+            r'prazo\s+(de\s+entrega|do\s+projeto)',
+            r'apresenta[çc][aã]o\s+para',
+            r'(sprint|retrospectiva|planning)',
+            r'demanda\s+(urgente|priorit[aá]ria)',
+        ],
+        'entertainment_strong': [
+            r'(meme|gatinhos?|v[ií]deo)\s+(engra[çc]ado|fofo)',
+            r'chorei\s+de\s+rir',
+            r'nada\s+a\s+ver\s+com\s+trabalho',
+            r'vale\s+a\s+pausa',
+            r'alegrar\s+seu\s+dia',
+        ]
+    }
+
+    @classmethod
+    def check_regex_patterns(cls, text: str, pattern_category: str) -> tuple:
+        """
+        Verifica padrões regex em uma categoria
+        
+        Returns:
+            (matches_count, matched_patterns)
+        """
+        import re
+        patterns = cls.CONTEXT_PATTERNS.get(pattern_category, [])
+        matches = []
+        
+        for pattern in patterns:
+            if re.search(pattern, text, re.IGNORECASE):
+                matches.append(pattern)
+        
+        return len(matches), matches
 
     @classmethod
     def get_all_spam_keywords(cls):

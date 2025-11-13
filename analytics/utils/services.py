@@ -70,10 +70,12 @@ class EmailAnalyticsData:
         category = self.classification_result.get('categoria') or self.classification_result.get('category')
         if category:
             category_lower = category.lower()
-            if 'produtiv' in category_lower:
-                return 'Produtivo'
-            elif 'improdutiv' in category_lower or 'unproductiv' in category_lower:
+            # IMPORTANTE: Verificar 'improdutiv' ANTES de 'produtiv' 
+            # porque 'produtiv' está contido em 'improdutiv'
+            if 'improdutiv' in category_lower or 'unproductiv' in category_lower:
                 return 'Improdutivo'
+            elif 'produtiv' in category_lower:
+                return 'Produtivo'
         
         return category or 'Não Classificado'
     
