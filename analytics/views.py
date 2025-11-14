@@ -11,7 +11,6 @@ from datetime import timedelta
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
 from drf_spectacular.types import OpenApiTypes
 
-# Imports dos utilitários
 from .utils.request_helpers import AnalyticsRequestHelper, AnalyticsResponseHelper
 from .utils.query_helpers import AnalyticsQueryBuilder, AnalyticsFormatter
 from .utils.services import AnalyticsService
@@ -492,7 +491,6 @@ class EmailAnalyticsListView(APIView):
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-# Instância global do service para reutilização
 _analytics_service = AnalyticsService()
 
 

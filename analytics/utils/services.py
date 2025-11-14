@@ -70,8 +70,6 @@ class EmailAnalyticsData:
         category = self.classification_result.get('categoria') or self.classification_result.get('category')
         if category:
             category_lower = category.lower()
-            # IMPORTANTE: Verificar 'improdutiv' ANTES de 'produtiv' 
-            # porque 'produtiv' está contido em 'improdutiv'
             if 'improdutiv' in category_lower or 'unproductiv' in category_lower:
                 return 'Improdutivo'
             elif 'produtiv' in category_lower:
@@ -310,7 +308,6 @@ class AnalyticsAggregator:
         Atualiza todas as estatísticas agregadas em uma operação
         """
         try:
-            # Atualiza cada tipo de estatística
             self._update_category_stats(email_analytics)
             self._update_sender_stats(email_analytics)
             self._update_keyword_frequency(email_analytics)
@@ -318,7 +315,6 @@ class AnalyticsAggregator:
             
         except Exception as e:
             logger.error(f"Error updating aggregated stats: {e}", exc_info=True)
-            # Não propaga o erro para não quebrar o salvamento principal
     
     def _update_category_stats(self, email_analytics):
         """Atualiza estatísticas de categoria"""

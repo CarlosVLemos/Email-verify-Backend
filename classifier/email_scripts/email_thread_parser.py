@@ -14,7 +14,6 @@ class EmailThreadParser:
     """
     
     def __init__(self):
-        # Padrões de cabeçalhos de email
         self.header_patterns = {
             'from': [
                 r'^From:\s*(.+)$',
@@ -41,7 +40,6 @@ class EmailThreadParser:
             ]
         }
         
-        # Padrões de separadores entre emails
         self.separator_patterns = [
             r'^-{3,}$',           # --- (3 ou mais hífens)
             r'^={3,}$',           # === (3 ou mais iguais)
@@ -50,7 +48,6 @@ class EmailThreadParser:
             r'^#{3,}$',           # ### (3 ou mais hashtags)
         ]
         
-        # Padrões de resposta/forward
         self.reply_patterns = [
             r'^Re:\s*',
             r'^RE:\s*',
@@ -74,7 +71,6 @@ class EmailThreadParser:
         if not text or len(text.strip()) < 10:
             return []
         
-        # Tenta diferentes estratégias de separação
         emails = self._split_by_headers(text)
         
         if len(emails) <= 1:
@@ -83,7 +79,6 @@ class EmailThreadParser:
         if len(emails) <= 1:
             emails = self._split_by_blank_lines(text)
         
-        # Se nenhuma separação funcionou, retorna o texto completo como um único email
         if len(emails) <= 1:
             return [{
                 'email_number': 1,
@@ -109,15 +104,12 @@ class EmailThreadParser:
         for i, line in enumerate(lines):
             line_stripped = line.strip()
             
-            # Detecta início de novo email (From: ou De:)
             from_match = self._match_header(line_stripped, 'from')
             if from_match:
-                # Salva email anterior se existir
                 if current_email:
                     current_email['body'] = '\n'.join(current_body_lines).strip()
                     emails.append(current_email)
                 
-                # Inicia novo email
                 current_email = {
                     'email_number': len(emails) + 1,
                     'from': from_match,
@@ -132,11 +124,9 @@ class EmailThreadParser:
                 in_body = False
                 continue
             
-            # Se não temos email atual, pula
             if not current_email:
                 continue
             
-            # Processa outros cabeçalhos
             to_match = self._match_header(line_stripped, 'to')
             if to_match:
                 current_email['to'] = to_match
@@ -152,17 +142,14 @@ class EmailThreadParser:
                 current_email['date'] = date_match
                 continue
             
-            # Linha vazia após cabeçalhos indica início do corpo
             if not line_stripped and not in_body:
                 in_body = True
                 continue
             
-            # Adiciona linha ao corpo se estamos no corpo
             if in_body or (current_email['from'] and not line_stripped.startswith(('From:', 'To:', 'Subject:', 'Date:', 'De:', 'Para:', 'Assunto:', 'Data:'))):
                 in_body = True
                 current_body_lines.append(line)
         
-        # Salva último email
         if current_email:
             current_email['body'] = '\n'.join(current_body_lines).strip()
             emails.append(current_email)
@@ -178,14 +165,12 @@ class EmailThreadParser:
         for line in lines:
             line_stripped = line.strip()
             
-            # Checa se é um separador
             is_separator = any(
                 re.match(pattern, line_stripped, re.MULTILINE)
                 for pattern in self.separator_patterns
             )
             
             if is_separator and current_block:
-                # Salva bloco atual
                 body = '\n'.join(current_block).strip()
                 if body and len(body) > 10:
                     emails.append({
@@ -202,7 +187,6 @@ class EmailThreadParser:
             else:
                 current_block.append(line)
         
-        # Salva último bloco
         if current_block:
             body = '\n'.join(current_block).strip()
             if body and len(body) > 10:
@@ -221,7 +205,6 @@ class EmailThreadParser:
     
     def _split_by_blank_lines(self, text: str) -> List[Dict]:
         """Separa emails baseado em múltiplas linhas vazias (3+)"""
-        # Divide por 3 ou mais linhas vazias consecutivas
         blocks = re.split(r'\n\s*\n\s*\n+', text)
         
         emails = []
@@ -269,7 +252,6 @@ class EmailThreadParser:
                 if match:
                     return match.group(1).strip()
         
-        # Se não achou, tenta usar a primeira linha não-vazia
         for line in lines:
             line = line.strip()
             if line and len(line) > 5 and len(line) < 100:

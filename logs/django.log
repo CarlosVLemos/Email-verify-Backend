@@ -1,0 +1,5 @@
+INFO 2025-11-14 14:42:24,169 email_classifier 361047 123442712383616 [CLASSIFY] Classificado como Produtivo/Suporte Técnico (confiança: 0.82)
+INFO 2025-11-14 14:42:24,173 email_classifier 361047 123442712383616 [CLASSIFY] Classificado como AGRADECIMENTO: Agradecimento genuíno com tom positivo
+INFO 2025-11-14 14:42:24,174 email_classifier 361047 123442712383616 [CLASSIFY] Classificado como Produtivo/Dúvida (confiança: 0.95)
+INFO 2025-11-14 14:42:24,176 email_classifier 361047 123442712383616 [CLASSIFY] Classificado como SPAM: Spam detectado (score: 19)
+INFO 2025-11-14 14:42:24,177 email_classifier 361047 123442712383616 [CLASSIFY] Classificado como Produtivo/Reclamação (confiança: 0.77)

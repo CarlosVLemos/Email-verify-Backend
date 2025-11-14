@@ -13,14 +13,11 @@ try:
     from nltk.tokenize import word_tokenize
     from nltk.stem import RSLPStemmer
     
-    # Configurar o diretório de dados do NLTK para evitar erros de permissão
     nltk_data_dir = "/tmp/nltk_data"
     
-    # Criar o diretório se não existir
     if not os.path.exists(nltk_data_dir):
         os.makedirs(nltk_data_dir)
     
-    # Limpar e definir o caminho do NLTK
     nltk.data.path = [nltk_data_dir]
     
     recursos_necessarios = ['punkt', 'punkt_tab', 'stopwords', 'rslp']
@@ -59,30 +56,23 @@ class NLPProcessor:
             - word_count: Contagem de palavras
             - sentence_count: Contagem de sentenças
         """
-        # Normalização básica
         cleaned = self._normalize_text(text)
         
-        # Tokenização
         tokens = self.tokenizer(cleaned, language='portuguese')
         
-        # Remoção de stopwords
         filtered_tokens = [
             token for token in tokens 
             if token.lower() not in self.stopwords and len(token) > 2
         ]
         
-        # Stemming (redução à raiz)
         stems = [self.stemmer.stem(token) for token in filtered_tokens]
         
-        # 🆕 N-grams para capturar contexto
         bigrams = self._extract_ngrams(tokens, 2)  # "não funciona", "mega promoção"
         trigrams = self._extract_ngrams(tokens, 3)  # "problema muito urgente"
         
-        # 🆕 Análise de frequência
         from collections import Counter
         word_freq = Counter(filtered_tokens)
         
-        # Métricas
         sentences = re.split(r'[.!?]+', text)
         sentence_count = len([s for s in sentences if s.strip()])
         

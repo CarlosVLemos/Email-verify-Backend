@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Validação rápida das correções implementadas
 """
@@ -6,20 +5,17 @@ import os
 import sys
 import django
 
-# Configura o ambiente Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 django.setup()
 
 from classifier.views import EmailClassifierView
 
 def quick_validation():
-    # Usa as novas classes diretamente da pasta email_scripts
     from classifier.email_scripts import EmailClassifier, EmailResponseGenerator
     
     classifier = EmailClassifier()
     response_generator = EmailResponseGenerator()
     
-    # Casos críticos para validar as correções
     test_cases = [
         {
             'text': '''🚨 URGENTE: Parabéns, Você é Nosso Vencedor Sortudo! 🎉 Confirme Sua Recompensa AGORA!
@@ -76,7 +72,6 @@ def quick_validation():
             result['urgencia']
         )
         
-        # Verificações de acerto
         category_correct = result['categoria'] == case['expected_category']
         subcategory_correct = result['subcategoria'] == case['expected_subcategory'] 
         

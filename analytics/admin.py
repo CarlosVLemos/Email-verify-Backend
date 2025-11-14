@@ -213,7 +213,6 @@ class TimeSeriesDataAdmin(admin.ModelAdmin):
     productivity_rate_display.short_description = 'Produtividade'
 
 
-# Customização do Admin Site
 admin.site.site_header = "Analytics - Dashboard de Email Intelligence"
 admin.site.site_title = "Analytics Admin"
 admin.site.index_title = "Painel de Analytics"

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Script para testar a classificação de emails localmente
 """
@@ -6,20 +5,17 @@ import os
 import sys
 import django
 
-# Configurar Django
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 django.setup()
 
-from classifier.views import EmailClassifierView
+from classifier.services.email_classification_service import EmailClassificationService
 
 def test_email_classification():
     """Testa a classificação com alguns exemplos"""
     
-    # Criar instância da view
-    classifier_view = EmailClassifierView()
+    classifier_service = EmailClassificationService()
     
-    # Emails de teste
     test_emails = [
         {
             'text': 'Olá, estou com um problema no sistema. Não consigo fazer login e preciso urgentemente acessar minha conta.',
@@ -51,17 +47,15 @@ def test_email_classification():
         print(f"   Esperado: {test_case['expected']}")
         
         try:
-            # Executar classificação
-            result = classifier_view.classify_with_keywords(test_case['text'])
+            result = classifier_service.classify_email(test_case['text'])
             
             print(f"   ✅ Resultado:")
-            print(f"      Subcategoria: {result['subcategoria']}")
-            print(f"      Categoria: {result['categoria']}")
-            print(f"      Tom: {result['tom']}")
-            print(f"      Urgência: {result['urgencia']}")
+            print(f"      Topic: {result['topic']}")
+            print(f"      Category: {result['category']}")
+            print(f"      Tone: {result['tone']}")
+            print(f"      Urgency: {result['urgency']}")
             
-            # Verificar se o resultado está correto
-            if result['subcategoria'] == test_case['expected']:
+            if result['topic'] == test_case['expected']:
                 print(f"   ✅ SUCESSO!")
             else:
                 print(f"   ⚠️  Diferente do esperado")

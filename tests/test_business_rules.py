@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Script de teste para validar as regras de negócio do classificador de emails
 """
@@ -6,7 +5,6 @@ import os
 import sys
 import django
 
-# Configura o ambiente Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 django.setup()
 
@@ -19,7 +17,6 @@ def test_hybrid_classification():
     classifier = EmailClassifier()
     response_generator = EmailResponseGenerator()
     
-    # Casos de teste com análise completa
     test_emails = [
         {
             'text': 'URGENTE! Estou com um erro crítico no sistema. O servidor não responde!',
@@ -72,7 +69,6 @@ def test_hybrid_classification():
             result['urgencia']
         )
         
-        # Verificações
         category_ok = "✅" if result['categoria'] == email['expected_category'] else "❌"
         tone_ok = "✅" if result['tom'] == email['expected_tone'] else "❌"
         urgency_ok = "✅" if result['urgencia'] == email['expected_urgency'] else "❌"

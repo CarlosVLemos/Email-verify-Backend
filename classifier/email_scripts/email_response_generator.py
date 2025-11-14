@@ -113,7 +113,6 @@ class EmailResponseGenerator:
         
         
         if subcategoria == 'Felicitações' and urgencia == 'Alta':
-            # Não aplica urgência a felicitações
             pass
             
         return response

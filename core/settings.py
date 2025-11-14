@@ -17,23 +17,17 @@ import dj_database_url
 
 load_dotenv()
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-my-test-key-for-development-12345')
 
-# SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,0.0.0.0').split(',')
 
 
-# Application definition
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -84,22 +78,35 @@ TEMPLATES = [
 WSGI_APPLICATION = 'core.wsgi.application'
 
 
-# Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASE_URL = os.getenv('DATABASE_URL', f"sqlite:///{BASE_DIR / 'db.sqlite3'}")
+DB_ENGINE = os.getenv('DB_ENGINE', 'sqlite').lower()
 
-DATABASES = {
-    'default': dj_database_url.parse(
-        DATABASE_URL,
-        conn_max_age=600,
-        conn_health_checks=True,
-    )
-}
+if DB_ENGINE == 'sqlite' or not DB_ENGINE:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
+elif DB_ENGINE == 'postgresql':
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.getenv('DB_NAME', 'email_classifier_db'),
+            'USER': os.getenv('DB_USER', 'postgres'),
+            'PASSWORD': os.getenv('DB_PASSWORD', 'postgres'),
+            'HOST': os.getenv('DB_HOST', 'localhost'),
+            'PORT': os.getenv('DB_PORT', '5432'),
+            'CONN_MAX_AGE': 600,
+            'OPTIONS': {
+                'connect_timeout': 10,
+            }
+        }
+    }
+else:
+    raise ValueError(f"DB_ENGINE inválido: {DB_ENGINE}. Use 'sqlite' ou 'postgresql'")
 
 
-# Password validation
-# https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -117,16 +124,50 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
-# Internationalization
-# https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
-
-TIME_ZONE = 'UTC'
-
-USE_I18N = True
-
-USE_TZ = True
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'file': {
+            'level': os.getenv('LOG_LEVEL', 'INFO'),
+            'class': 'logging.FileHandler',
+            'filename': BASE_DIR / 'logs/django.log',
+            'formatter': 'verbose',
+        },
+        'console': {
+            'level': os.getenv('LOG_LEVEL', 'INFO'),
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+    },
+    'root': {
+        'handlers': ['console', 'file'],
+        'level': os.getenv('LOG_LEVEL', 'INFO'),
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'file'],
+            'level': os.getenv('LOG_LEVEL', 'INFO'),
+            'propagate': False,
+        },
+        'classifier': {
+            'handlers': ['console', 'file'],
+            'level': os.getenv('LOG_LEVEL', 'INFO'),
+            'propagate': False,
+        },
+    },
+}
 
 
 
@@ -140,78 +181,111 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 
 
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10MB
+DATA_UPLOAD_MAX_NUMBER_FILES = 5
+
+# Security settings para produção
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'
+SECURE_HSTS_SECONDS = 31536000 if not DEBUG else 0
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
+
+# Cookies seguros apenas em produção
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = True
 
 
-REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+USE_REDIS = os.getenv('USE_REDIS', 'False') == 'True'
 
-
-CACHES = {
-    'default': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': REDIS_URL,
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            'PARSER_CLASS': 'redis.connection.HiredisParser',
-            'CONNECTION_POOL_CLASS_KWARGS': {
-                'max_connections': 50,
-                'retry_on_timeout': True,
+if USE_REDIS:
+    REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+    CACHES = {
+        'default': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': REDIS_URL,
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                'IGNORE_EXCEPTIONS': True,
             },
-            'SOCKET_CONNECT_TIMEOUT': 5,
-            'SOCKET_TIMEOUT': 5,
-            'COMPRESSOR': 'django_redis.compressors.zlib.ZlibCompressor',
-            'IGNORE_EXCEPTIONS': True,
+            'KEY_PREFIX': 'email_classifier',
+            'TIMEOUT': 300,
         },
-        'KEY_PREFIX': 'email_classifier',
-        'TIMEOUT': 300,
-    },
-    'analytics': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': os.getenv('REDIS_URL', 'redis://localhost:6379/0').replace('/0', '/1'),
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            'PARSER_CLASS': 'redis.connection.HiredisParser',
+    }
+    SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+else:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+            'LOCATION': 'django_cache_table',
+            'TIMEOUT': 300,
+            'OPTIONS': {
+                'MAX_ENTRIES': 1000,
+            }
         },
-        'KEY_PREFIX': 'analytics',
-        'TIMEOUT': 900,
-    },
-}
+    }
+    SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 
-
-SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
 SESSION_CACHE_ALIAS = 'default'
-
-# Celery Configuration - Disabled (uncomment when needed)
-# CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/1')
-# CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:6379/1')
-# CELERY_ACCEPT_CONTENT = ['json']
-# CELERY_TASK_SERIALIZER = 'json'
-# CELERY_RESULT_SERIALIZER = 'json'
-# CELERY_TIMEZONE = 'UTC'
-# CELERY_TASK_TRACK_STARTED = True
-# CELERY_TASK_TIME_LIMIT = 30 * 60
-# CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60
-# CELERY_WORKER_PREFETCH_MULTIPLIER = 4
-# CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000
 
 
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10,
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'core.middleware.authentication.OptionalAPIKeyAuthentication',
+    ],
+
+    'DEFAULT_THROTTLE_CLASSES': [
+        'core.middleware.throttling.BurstRateThrottle',      
+        'core.middleware.throttling.AnonRateThrottle',       
+        'core.middleware.throttling.APIKeyRateThrottle',     
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'burst': '10/minute',        
+        'anon': '50/hour',           
+        'api_key': '1000/hour',
+        'daily': '5000/day',        
+    },
 }
+
+
+API_KEYS = os.getenv('API_KEYS', '').split(',') if os.getenv('API_KEYS') else [
+    'dev_test_key_123',  
+]
 
 
 SPECTACULAR_SETTINGS = {
     'TITLE': 'Email Intelligence API',
     'DESCRIPTION': """
-# 🤖 Email Intelligence API
 
 API completa para classificação inteligente de emails e analytics de produtividade.
 
-## 🎯 Principais Recursos
 
-### 📧 Email Classifier
+**API Key via Header:**
+```
+X-API-Key: dev_test_key_123
+```
+
+**Rate Limits:**
+- ✅ **COM API Key**: 1000 requests/hora
+- ⚠️ **SEM API Key**: 50 requests/hora (apenas em desenvolvimento)
+- 🚫 **Burst protection**: 10 requests/minuto (todos)
+
+**Exemplo com cURL:**
+```bash
+curl -H "X-API-Key: dev_test_key_123" \\
+     -H "Content-Type: application/json" \\
+     -d '{"email_text": "Seu email aqui"}' \\
+     http://localhost:8000/api/classifier/classify/
+```
+
+
 - Classificação automática por categoria e subcategoria
 - Detecção de tom emocional (Positivo/Negativo/Neutro)
 - Análise de urgência (Alta/Média/Baixa)
@@ -220,7 +294,6 @@ API completa para classificação inteligente de emails e analytics de produtivi
 - Resumo executivo de emails longos
 - Processamento em lote (até 50 emails)
 
-### 📊 Analytics Dashboard
 - Métricas de produtividade em tempo real
 - Tendências e gráficos temporais
 - Análise de remetentes e domínios
@@ -229,7 +302,6 @@ API completa para classificação inteligente de emails e analytics de produtivi
 - Distribuição de categorias
 - Lista paginada de emails processados
 
-## 🚀 Getting Started
 
 1. **Classificar um email único**:
    ```bash
@@ -252,13 +324,11 @@ API completa para classificação inteligente de emails e analytics de produtivi
    }
    ```
 
-## 📖 Documentação
 
 - **Swagger UI**: Interface interativa para testar endpoints
 - **ReDoc**: Documentação detalhada alternativa
 - **OpenAPI Schema**: Schema JSON para integração
 
-## 🔗 Links Úteis
 
 - Repositório: https://github.com/CarlosVLemos/Email-verify-Backend
 - Documentação completa: Ver arquivo API_ENDPOINTS.md
@@ -270,6 +340,20 @@ API completa para classificação inteligente de emails e analytics de produtivi
     'DEFAULT_GENERATOR_CLASS': 'drf_spectacular.generators.SchemaGenerator',
     'SERVE_PERMISSIONS': ['rest_framework.permissions.AllowAny'],
     'SERVE_AUTHENTICATION': None,
+    
+
+    'APPEND_COMPONENTS': {
+        'securitySchemes': {
+            'ApiKeyAuth': {
+                'type': 'apiKey',
+                'in': 'header',
+                'name': 'X-API-Key',
+                'description': 'API Key para autenticação (opcional em dev)'
+            }
+        }
+    },
+    'SECURITY': [{'ApiKeyAuth': []}],
+    
     'SWAGGER_UI_SETTINGS': {
         'deepLinking': True,
         'persistAuthorization': True,
@@ -288,12 +372,10 @@ API completa para classificação inteligente de emails e analytics de produtivi
     ],
 }
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:5173",  
-    "http://127.0.0.1:5173",
-]
+CORS_ALLOWED_ORIGINS = os.getenv(
+    'CORS_ALLOWED_ORIGINS', 
+    'http://localhost:3000,http://localhost:5173'
+).split(',')
 
 CORS_ALLOW_CREDENTIALS = True
 
@@ -306,14 +388,16 @@ CORS_ALLOW_METHODS = [
     'PUT',
 ]
 
-CORS_ALLOW_HEADERS = [
-    'accept',
-    'accept-encoding',
-    'authorization',
-    'content-type',
-    'dnt',
-    'origin',
-    'user-agent',
-    'x-csrftoken',
-    'x-requested-with',
-]
+# Sentry para monitoramento (opcional)
+SENTRY_DSN = os.getenv('SENTRY_DSN')
+if SENTRY_DSN:
+    import sentry_sdk
+    from sentry_sdk.integrations.django import DjangoIntegration
+
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[DjangoIntegration()],
+        traces_sample_rate=1.0,
+        send_default_pii=True,
+        environment='production' if not DEBUG else 'development',
+    )

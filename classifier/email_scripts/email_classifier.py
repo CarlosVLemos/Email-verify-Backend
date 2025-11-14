@@ -25,7 +25,6 @@ class EmailClassifier:
         nlp_data = self.nlp.preprocess(text)
         text_lower = nlp_data['cleaned_text']
         
-        # 🆕 Log detalhado para debug
         logger.debug(f"[CLASSIFY] Processando email com {nlp_data['word_count']} palavras")
         logger.debug(f"[CLASSIFY] Top palavras: {nlp_data.get('most_common_words', [])[:5]}")
 
@@ -72,10 +71,9 @@ class EmailClassifier:
         return rule_result
     
     def _check_spam(self, text_lower, nlp_data):
-        """Detecta spam com validação cruzada e regex"""
+        """Detecta spam com validação cruzada e regex melhorada"""
         full_text = text_lower
         
-        # 🆕 Verifica padrões regex fortes de spam
         spam_regex_count, spam_patterns = self.patterns.check_regex_patterns(full_text, 'spam_strong')
         if spam_regex_count >= 2:
             return {
@@ -107,6 +105,29 @@ class EmailClassifier:
                 
         if 'parabéns' in text_lower or 'felicitações' in text_lower:
             spam_score += 2
+        
+        # Detecção específica para spam de dinheiro fácil
+        money_easy_patterns = [
+            'ganhe dinheiro', 'dinheiro fácil', 'renda extra', 'milhões',
+            'riqueza rápida', 'fortuna overnight', 'sem trabalhar'
+        ]
+        if any(pattern in text_lower for pattern in money_easy_patterns):
+            spam_score += 8
+            
+        # Detecção de urgência suspeita em contexto de oferta
+        suspicious_urgency = ['agora', 'urgente', 'imediatamente', 'rápido', 'clique aqui']
+        offer_context = ['oferta', 'promoção', 'desconto', 'prêmio', 'sorteio']
+        
+        has_offer = any(word in text_lower for word in offer_context)
+        has_suspicious_urgency = any(word in text_lower for word in suspicious_urgency)
+        
+        if has_offer and has_suspicious_urgency:
+            spam_score += 5
+            
+        # Detecção de spam em maiúsculo
+        uppercase_ratio = sum(1 for c in full_text if c.isupper()) / len(full_text.replace(' ', ''))
+        if uppercase_ratio > 0.3 and len(full_text) > 20:  # Mais de 30% maiúsculo
+            spam_score += 4
             
         if spam_score >= 8:
             return {
@@ -121,7 +142,6 @@ class EmailClassifier:
     
     def _check_entertainment(self, text_lower, nlp_data):
         """Detecta conteúdo de entretenimento (memes, gatinhos, vídeos, etc)"""
-        # 🆕 Verifica padrões regex fortes de entretenimento
         entertain_regex_count, entertain_patterns = self.patterns.check_regex_patterns(text_lower, 'entertainment_strong')
         if entertain_regex_count >= 1:
             return {
@@ -133,7 +153,6 @@ class EmailClassifier:
                 'reasoning': f'Padrão forte de entretenimento: {entertain_patterns[0]}'
             }
         
-        # 🆕 Verifica n-grams (contexto de 2-3 palavras)
         bigrams_text = nlp_data.get('bigrams_text', '')
         entertainment_bigrams = [
             'nada a ver', 'chorei de', 'vale a', 'alegrar seu',
@@ -147,7 +166,6 @@ class EmailClassifier:
             if keyword in text_lower
         )
         
-        # Adiciona score de bigrams
         entertainment_score += bigram_matches * 4
         
         strong_indicators = [
@@ -175,21 +193,16 @@ class EmailClassifier:
     
     def _check_marketing(self, text_lower, nlp_data):
         """Detecta marketing/promoções comerciais com validação cruzada"""
-        # 🆕 PRIMEIRO: Verifica se tem contexto de trabalho GENUÍNO
         work_regex_count, work_patterns = self.patterns.check_regex_patterns(text_lower, 'work_context')
         if work_regex_count >= 2:
-            # É uma comunicação de trabalho legítima, NÃO é marketing
             return None
         
-        # 🆕 Verifica padrões regex FORTES de marketing
         marketing_regex_count, marketing_patterns = self.patterns.check_regex_patterns(text_lower, 'marketing_strong')
         marketing_negative_count, _ = self.patterns.check_regex_patterns(text_lower, 'marketing_negative')
         
-        # Se tem indicadores negativos (trabalho), reduz chance de ser marketing
         if marketing_negative_count >= 1:
             return None
         
-        # Se tem 2+ padrões regex de marketing, É marketing
         if marketing_regex_count >= 2:
             return {
                 'categoria': 'Improdutivo',
@@ -200,7 +213,6 @@ class EmailClassifier:
                 'reasoning': f'Padrões regex fortes de marketing: {marketing_patterns[:2]}'
             }
         
-        # Verifica se tem contexto profissional genuíno (método antigo)
         has_work_context = any(
             keyword in text_lower 
             for keyword in self.patterns.PRODUTIVO['comunicacao_trabalho'][:15]
@@ -211,7 +223,6 @@ class EmailClassifier:
         
         marketing_score = sum(2 for keyword in self.patterns.IMPRODUTIVO['marketing'] if keyword in text_lower)
         
-        # 🆕 Verifica n-grams de marketing
         bigrams_text = nlp_data.get('bigrams_text', '')
         marketing_bigrams = [
             'mega promoção', 'super oferta', 'último dia', 
@@ -252,6 +263,22 @@ class EmailClassifier:
     def _check_simple_thanks(self, text_lower, full_text):
         thanks_score = sum(2 for keyword in self.patterns.IMPRODUTIVO['agradecimento'] if keyword in text_lower)
         
+        # Verificar se é realmente um agradecimento simples
+        has_positive_tone = any(word in text_lower for word in ['excelente', 'incrível', 'muito satisfeito', 'ótimo', 'maravilhoso'])
+        has_gratitude_words = any(word in text_lower for word in ['obrigado', 'obrigada', 'agradeço', 'gratidão', 'reconhecimento'])
+        
+        # Se tem tom positivo E palavras de gratidão, é agradecimento mesmo com conteúdo produtivo
+        if has_positive_tone and has_gratitude_words and len(full_text.split()) < 100:
+            return {
+                'categoria': 'Improdutivo',
+                'subcategoria': 'Agradecimento',
+                'tom': 'Positivo', 
+                'urgencia': 'Baixa',
+                'confianca': 0.95,
+                'reasoning': 'Agradecimento genuíno com tom positivo'
+            }
+        
+        # Lógica original para casos mais simples
         has_productive_content = any(
             keyword in text_lower 
             for keywords in self.patterns.PRODUTIVO.values()
@@ -277,7 +304,6 @@ class EmailClassifier:
             if score > 0:
                 category_scores[categoria] = score
         
-        # 🆕 Boost de score se encontrar n-grams relevantes
         bigrams_text = nlp_data.get('bigrams_text', '')
         work_bigrams = [
             'problema urgente', 'preciso de', 'muito urgente',
@@ -285,7 +311,6 @@ class EmailClassifier:
         ]
         for bg in work_bigrams:
             if bg in bigrams_text:
-                # Aumenta score da categoria mais relevante
                 if 'urgente' in category_scores:
                     category_scores['urgente'] += 3
                 elif 'suporte_tecnico' in category_scores:
@@ -301,6 +326,16 @@ class EmailClassifier:
                 reasoning = 'Felicitação genuína detectada'
             else:
                 category_scores.pop('felicitacoes', None)
+        
+        # PRIORIDADE: Reclamação tem prioridade sobre solicitação quando há tom negativo forte
+        has_strong_complaint = any(word in text_lower for word in [
+            'insatisfeito', 'muito insatisfeito', 'decepcionado', 'furioso', 
+            'revoltado', 'péssimo', 'horrível', 'inaceitável', 'absurdo'
+        ])
+        
+        if has_strong_complaint and 'reclamacao' in category_scores:
+            # Se há reclamação forte, remove solicitação para priorizar reclamação
+            category_scores.pop('solicitacao', None)
         
         subcategoria = self._determine_subcategory(category_scores, structural)
         
@@ -391,27 +426,67 @@ class EmailClassifier:
             return 'Baixa'
     
     def _generate_response_with_huggingface(self, email_text, nlp_stats):
-        """Gera resposta usando Hugging Face API"""
+        """Gera resposta usando Hugging Face API com fallback robusto"""
         import requests
         import os
+        import logging
 
+        logger = logging.getLogger(__name__)
         HF_API_KEY = os.getenv('HF_API_KEY')
+
         if not HF_API_KEY:
+            logger.warning("HF_API_KEY não configurada - usando resposta padrão")
             return None
-        
+
         API_URL = "https://api-inference.huggingface.co/models/pierreguillou/gpt2-small-portuguese"
-        prompt = f"Email: {email_text}\nEstatísticas: {nlp_stats}\nResposta profissional:"
-        
+
+        # Prompt mais estruturado para melhor resposta
+        prompt = f"""Email recebido: {email_text[:200]}...
+
+Análise: {nlp_stats}
+
+Gere uma resposta profissional em português brasileiro, curta e objetiva:"""
+
         try:
             response = requests.post(
                 API_URL,
                 headers={"Authorization": f"Bearer {HF_API_KEY}"},
-                json={"inputs": prompt, "parameters": {"max_length": 150}}
+                json={
+                    "inputs": prompt,
+                    "parameters": {
+                        "max_length": 100,
+                        "temperature": 0.7,
+                        "do_sample": True,
+                        "pad_token_id": 50256
+                    }
+                },
+                timeout=10  # Timeout para não travar
             )
+
             if response.status_code == 200:
-                return response.json()[0]['generated_text']
-            else:
+                result = response.json()
+                if isinstance(result, list) and len(result) > 0:
+                    generated_text = result[0].get('generated_text', '')
+                    # Remove o prompt da resposta
+                    if generated_text.startswith(prompt):
+                        generated_text = generated_text[len(prompt):].strip()
+                    return generated_text[:200]  # Limita tamanho
+                else:
+                    logger.warning("Resposta HuggingFace vazia ou mal formatada")
+                    return None
+            elif response.status_code == 503:
+                logger.warning("HuggingFace API temporariamente indisponível (503)")
                 return None
+            else:
+                logger.error(f"Erro HuggingFace API: {response.status_code} - {response.text}")
+                return None
+
+        except requests.exceptions.Timeout:
+            logger.error("Timeout na chamada para HuggingFace API")
+            return None
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Erro de rede na chamada para HuggingFace: {e}")
+            return None
         except Exception as e:
-            print(f"Erro ao chamar Hugging Face API: {e}")
+            logger.error(f"Erro inesperado na chamada para HuggingFace: {e}")
             return None

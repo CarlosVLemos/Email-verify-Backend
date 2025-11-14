@@ -104,7 +104,6 @@ class EmailPatterns:
     
     IMPRODUTIVO = {
         'entretenimento': [
-            # Conteúdo recreativo/diversão
             'meme', 'memes', 'vídeo engraçado', 'vídeo hilário', 'chorei de rir',
             'piada', 'piadas', 'zueira', 'zoeira', 'risada', 'humor',
             'gatinho', 'gatinhos', 'gato', 'gatos', 'cachorro', 'cachorros', 'pet',
@@ -147,7 +146,9 @@ class EmailPatterns:
             'empréstimo pré-aprovado', 'cartão sem anuidade', 'conta digital',
             'congratulations', 'winner', 'lottery', 'prize', 'claim', 'beneficiary',
             'inheritance', 'million dollars', 'usd', 'euros', 'pounds',
-            'click here', 'urgent', 'confidential', 'business proposal'
+            'click here', 'urgent', 'confidential', 'business proposal',
+            'dinheiro fácil', 'riqueza rápida', 'fortuna overnight', 'sem trabalhar',
+            'renda passiva', 'milionário instantâneo', 'seja rico', 'ganhe fácil'
         ],
         'marketing': [
 
@@ -270,7 +271,6 @@ class EmailPatterns:
         'clique para resgatar', 'confirme seus dados', 'taxa de liberação'
     ]
     
-    # 🆕 Padrões de contexto com REGEX para detecção precisa
     CONTEXT_PATTERNS = {
         'marketing_strong': [
             r'\d+%\s*(de\s*)?desconto',  # "50% desconto", "70% de desconto"
