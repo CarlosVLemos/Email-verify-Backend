@@ -24,7 +24,27 @@ API REST completa para classificação inteligente de emails e analytics de prod
 - ✅ Distribuição de categorias
 - ✅ Lista paginada com filtros
 
-### 🐳 Docker & Infrastructure
+### � Segurança & Autenticação
+- ✅ API Key Authentication (opcional)
+- ✅ Rate limiting por tipo de usuário
+- ✅ Throttling configurável (burst/anon/authenticated)
+- ✅ CORS configurável
+- ✅ Debug mode protection
+- ✅ Documentação completa em [AUTHENTICATION.md](./AUTHENTICATION.md)
+
+**Rate Limits:**
+- Burst: 10 requisições/minuto
+- Anônimo: 50 requisições/hora
+- Com API Key: 1000 requisições/hora
+
+### ⚙️ Configuração Flexível
+- ✅ Suporte a SQLite (desenvolvimento/free tier) e PostgreSQL (produção)
+- ✅ Cache configurável: Redis ou Database Cache
+- ✅ Variáveis de ambiente documentadas
+- ✅ Deploy-ready para Render, Railway, Heroku
+- ✅ Integração opcional com Hugging Face para IA
+
+### �🐳 Docker & Infrastructure
 - ✅ Docker Compose completo
 - ✅ PostgreSQL 15 como banco de dados
 - ✅ Redis para cache e filas
@@ -111,17 +131,37 @@ venv\Scripts\activate  # Windows
 pip install -r requirements.txt
 ```
 
-4. **Execute migrações**
+4. **Configure variáveis de ambiente**
 ```bash
-python manage.py migrate
+# Copie o arquivo de exemplo
+cp .env.example .env
+
+# Edite conforme necessário (valores padrão funcionam para dev)
+nano .env  # ou use seu editor preferido
 ```
 
-5. **Inicie o servidor**
+**📖 Guia Completo:** Veja [CONFIGURACAO_AMBIENTE.md](./CONFIGURACAO_AMBIENTE.md) para documentação detalhada sobre todas as variáveis de ambiente.
+
+**Configurações importantes:**
+- `DATABASE_URL`: SQLite (padrão) ou PostgreSQL
+- `USE_REDIS`: `False` para usar cache em banco (sem Redis)
+- `HF_API_KEY`: Token do Hugging Face para geração de respostas com IA (opcional)
+- `API_KEYS`: Chaves para autenticação da API
+
+5. **Execute migrações**
+```bash
+python manage.py migrate
+
+# Se usar cache em banco (USE_REDIS=False), crie a tabela:
+python manage.py createcachetable
+```
+
+6. **Inicie o servidor**
 ```bash
 python manage.py runserver
 ```
 
-6. **Acesse a documentação**
+7. **Acesse a documentação**
 ```
 http://localhost:8000/api/docs/
 ```
@@ -145,6 +185,21 @@ Documentação completa e bem formatada.
 http://localhost:8000/api/schema/
 ```
 Schema JSON para integração automática.
+
+### 📚 Documentação Adicional
+
+- **[CONFIGURACAO_AMBIENTE.md](./CONFIGURACAO_AMBIENTE.md)** - Guia completo de variáveis de ambiente
+  - Configuração de banco de dados (SQLite vs PostgreSQL)
+  - Setup de cache (Redis vs Database)
+  - Tokens e API Keys
+  - Deployment em diferentes providers
+  - Troubleshooting
+
+- **[AUTHENTICATION.md](./AUTHENTICATION.md)** - Sistema de autenticação
+  - Como usar API Keys
+  - Rate limiting e throttling
+  - Exemplos de uso (cURL, Python, JavaScript)
+  - Segurança e boas práticas
 
 ## 🔗 Endpoints Principais
 

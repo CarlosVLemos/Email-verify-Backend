@@ -1,5 +1,10 @@
 from django.urls import path
-from .views import EmailClassifierAPIView, ExecutiveSummaryAPIView, BatchEmailAPIView, HealthCheckAPIView
+from .views import (
+    EmailClassifierAPIView, 
+    ExecutiveSummaryAPIView, 
+    BatchEmailAPIView, 
+    HealthCheckAPIView
+)
 
 app_name = 'classifier'
 

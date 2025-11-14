@@ -112,7 +112,6 @@ class TimeSeriesDataSerializer(serializers.ModelSerializer):
         return obj.date.strftime('%d/%m/%Y')
 
 
-# Serializers específicos para Dashboard
 
 class DashboardOverviewSerializer(serializers.Serializer):
     """Serializer para visão geral do dashboard"""
@@ -139,7 +138,6 @@ class ProductivityTrendSerializer(serializers.Serializer):
     period = serializers.CharField()
     granularity = serializers.CharField()
     
-    # Estatísticas do período
     total_change = serializers.FloatField()
     trend_direction = serializers.CharField()
     best_day = serializers.DictField()

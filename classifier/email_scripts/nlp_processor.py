@@ -4,6 +4,7 @@ Usa NLTK para tokenização, remoção de stopwords e lemmatização
 """
 import re
 import unicodedata
+import os
 from typing import List, Dict
 
 try:
@@ -12,11 +13,18 @@ try:
     from nltk.tokenize import word_tokenize
     from nltk.stem import RSLPStemmer
     
+    nltk_data_dir = "/tmp/nltk_data"
+    
+    if not os.path.exists(nltk_data_dir):
+        os.makedirs(nltk_data_dir)
+    
+    nltk.data.path = [nltk_data_dir]
+    
     recursos_necessarios = ['punkt', 'punkt_tab', 'stopwords', 'rslp']
     
     for recurso in recursos_necessarios:
         try:
-            nltk.download(recurso, quiet=True)
+            nltk.download(recurso, quiet=True, download_dir=nltk_data_dir)
         except Exception as e:
             print(f'Aviso ao baixar {recurso}: {e}')
     
@@ -43,25 +51,28 @@ class NLPProcessor:
             - tokens: Lista de tokens
             - filtered_tokens: Tokens sem stopwords
             - stems: Tokens stemizados
+            - bigrams: Pares de palavras consecutivas
+            - trigrams: Trios de palavras consecutivas
             - word_count: Contagem de palavras
             - sentence_count: Contagem de sentenças
         """
-        # Normalização básica
         cleaned = self._normalize_text(text)
         
-        # Tokenização
         tokens = self.tokenizer(cleaned, language='portuguese')
         
-        # Remoção de stopwords
         filtered_tokens = [
             token for token in tokens 
             if token.lower() not in self.stopwords and len(token) > 2
         ]
         
-        # Stemming (redução à raiz)
         stems = [self.stemmer.stem(token) for token in filtered_tokens]
         
-        # Métricas
+        bigrams = self._extract_ngrams(tokens, 2)  # "não funciona", "mega promoção"
+        trigrams = self._extract_ngrams(tokens, 3)  # "problema muito urgente"
+        
+        from collections import Counter
+        word_freq = Counter(filtered_tokens)
+        
         sentences = re.split(r'[.!?]+', text)
         sentence_count = len([s for s in sentences if s.strip()])
         
@@ -70,12 +81,26 @@ class NLPProcessor:
             'tokens': tokens,
             'filtered_tokens': filtered_tokens,
             'stems': stems,
+            'bigrams': bigrams,
+            'trigrams': trigrams,
+            'bigrams_text': ' '.join(bigrams),  # Para busca rápida
+            'trigrams_text': ' '.join(trigrams),
+            'word_freq': word_freq,
+            'most_common_words': [word for word, _ in word_freq.most_common(10)],
             'word_count': len(tokens),
             'sentence_count': sentence_count,
             'avg_word_length': sum(len(t) for t in tokens) / len(tokens) if tokens else 0,
             'unique_words': len(set(tokens)),
             'lexical_diversity': len(set(tokens)) / len(tokens) if tokens else 0
         }
+    
+    def _extract_ngrams(self, tokens: List[str], n: int) -> List[str]:
+        """Extrai n-gramas do texto tokenizado"""
+        ngrams = []
+        for i in range(len(tokens) - n + 1):
+            ngram = ' '.join(tokens[i:i+n]).lower()
+            ngrams.append(ngram)
+        return ngrams
     
     def _normalize_text(self, text: str) -> str:
         """Normaliza o texto removendo acentos, caracteres especiais etc"""

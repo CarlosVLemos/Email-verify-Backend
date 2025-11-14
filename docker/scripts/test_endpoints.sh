@@ -1,19 +1,17 @@
-#!/bin/bash
 
-# Script de verificação de endpoints
 BASE_URL="http://localhost:8000"
 
 echo "🔍 Verificando endpoints da API..."
 echo ""
 
-# Health Check
+
 echo "1. Testing Health Check..."
 curl -s "$BASE_URL/api/classifier/health/" | python3 -m json.tool
 echo ""
 echo "---"
 echo ""
 
-# Classificação de email simples
+
 echo "2. Testing Email Classification..."
 curl -s -X POST "$BASE_URL/api/classifier/classify/" \
   -H "Content-Type: application/json" \
@@ -23,14 +21,13 @@ echo ""
 echo "---"
 echo ""
 
-# Dashboard Overview
 echo "3. Testing Dashboard Overview..."
 curl -s "$BASE_URL/api/analytics/dashboard/overview/?days=30" | python3 -m json.tool
 echo ""
 echo "---"
 echo ""
 
-# Resumo Executivo
+
 echo "4. Testing Executive Summary..."
 curl -s -X POST "$BASE_URL/api/classifier/summary/" \
   -H "Content-Type: application/json" \
@@ -40,7 +37,7 @@ echo ""
 echo "---"
 echo ""
 
-# Batch Processing
+
 echo "5. Testing Batch Email Processing..."
 curl -s -X POST "$BASE_URL/api/classifier/batch/" \
   -H "Content-Type: application/json" \

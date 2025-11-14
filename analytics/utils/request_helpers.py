@@ -21,7 +21,6 @@ class AnalyticsRequestHelper:
         """
         try:
             days = int(request.GET.get('days', default_days))
-            # Validação flexível - limita mas não quebra
             if days < 1:
                 logger.warning(f"Days parameter too small: {days}, using 1")
                 days = 1
@@ -116,7 +115,6 @@ class AnalyticsResponseHelper:
         else:
             response['data'] = data
         
-        # Adiciona campos extras se fornecidos
         if extra_fields:
             response.update(extra_fields)
         
