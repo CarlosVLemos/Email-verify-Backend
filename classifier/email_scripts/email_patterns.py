@@ -2,10 +2,8 @@
 Padrões de palavras-chave para classificação de emails
 Separado para facilitar manutenção e evitar código duplicado
 """
-
 class EmailPatterns:
     """Contém todos os padrões de classificação organizados por categoria"""
-    
     PRODUTIVO = {
         'urgente': [
             'urgente', 'emergência', 'emergencial', 'crítico', 'crítica', 'imediato', 'imediata',
@@ -101,7 +99,6 @@ class EmailPatterns:
             'stakeholders', 'partes interessadas', 'envolvidos', 'participantes'
         ]
     }
-    
     IMPRODUTIVO = {
         'entretenimento': [
             'meme', 'memes', 'vídeo engraçado', 'vídeo hilário', 'chorei de rir',
@@ -151,7 +148,6 @@ class EmailPatterns:
             'renda passiva', 'milionário instantâneo', 'seja rico', 'ganhe fácil'
         ],
         'marketing': [
-
             'mega promoção', 'super promoção', 'promoção imperdível', 'último dia',
             'oferta especial', 'promoção exclusiva', 'desconto imperdível', 'liquidação',
             '70% desconto', '50% desconto', 'desconto de', '% off',
@@ -187,7 +183,6 @@ class EmailPatterns:
             'aliviou minha preocupação', 'tranquilizou', 'acalmou'
         ]
     }
-    
     TOM = {
         'positivo': [
             'ótimo', 'excelente', 'obrigado', 'obrigada', 'parabéns', 'satisfeito', 'satisfeita',
@@ -217,7 +212,6 @@ class EmailPatterns:
             'defeituoso', 'prejudicial', 'nocivo', 'danoso', 'negativo'
         ]
     }
-    
     URGENCIA = {
         'alta': [
             'urgente', 'emergência', 'emergencial', 'crítico', 'crítica', 'imediato', 'imediata',
@@ -251,26 +245,22 @@ class EmailPatterns:
             'não é urgente', 'pode esperar', 'sem urgência'
         ]
     }
-
     FELICITACOES_GENUINAS = [
         'parabéns pelo', 'parabéns pela', 'felicitações pelo', 'felicitações pela',
         'parabenizo pelo', 'parabenizo pela', 'cumprimentos pelo', 'cumprimentos pela',
         'meus parabéns pelo', 'meus parabéns pela', 'congratulo pelo', 'congratulo pela'
     ]
-    
     CONTEXTOS_PROFISSIONAIS = [
         'projeto', 'trabalho', 'conquista', 'sucesso', 'resultado', 'desempenho',
         'graduação', 'formatura', 'promoção', 'novo emprego', 'aposentadoria',
         'casamento', 'nascimento', 'aniversário', 'nova casa', 'empresa',
         'negócio', 'carreira', 'profissional', 'acadêmico', 'pessoal'
     ]
-    
     SPAM_SUSPEITO_FORTE = [
         'você foi sorteado', 'ganhou um prêmio', 'contemplado com',
         'vencedor de', 'beneficiário de', 'herdeiro de', 'sorteio automático',
         'clique para resgatar', 'confirme seus dados', 'taxa de liberação'
     ]
-    
     CONTEXT_PATTERNS = {
         'marketing_strong': [
             r'\d+%\s*(de\s*)?desconto',  # "50% desconto", "70% de desconto"
@@ -316,36 +306,29 @@ class EmailPatterns:
             r'alegrar\s+seu\s+dia',
         ]
     }
-
     @classmethod
     def check_regex_patterns(cls, text: str, pattern_category: str) -> tuple:
         """
         Verifica padrões regex em uma categoria
-        
         Returns:
             (matches_count, matched_patterns)
         """
         import re
         patterns = cls.CONTEXT_PATTERNS.get(pattern_category, [])
         matches = []
-        
         for pattern in patterns:
             if re.search(pattern, text, re.IGNORECASE):
                 matches.append(pattern)
-        
         return len(matches), matches
-
     @classmethod
     def get_all_spam_keywords(cls):
         return cls.IMPRODUTIVO['spam']
-    
     @classmethod
     def get_all_productive_keywords(cls):
         all_keywords = []
         for keywords in cls.PRODUTIVO.values():
             all_keywords.extend(keywords)
         return all_keywords
-    
     @classmethod
     def is_genuine_congratulation(cls, text):
         text_lower = text.lower()
@@ -353,27 +336,22 @@ class EmailPatterns:
         has_professional_context = any(context in text_lower for context in cls.CONTEXTOS_PROFISSIONAIS)
         has_spam_pattern = any(spam in text_lower for spam in cls.SPAM_SUSPEITO_FORTE)
         return has_genuine_pattern and has_professional_context and not has_spam_pattern
-    
     @classmethod
     def has_suspicious_spam_patterns(cls, text):
         text_lower = text.lower()
         spam_count = sum(1 for spam in cls.SPAM_SUSPEITO_FORTE if spam in text_lower)
         return spam_count >= 2
-    
     @classmethod
     def get_context_score(cls, text, category):
         text_lower = text.lower()
-        
         if category in cls.PRODUTIVO:
             keywords = cls.PRODUTIVO[category]
         elif category in cls.IMPRODUTIVO:
             keywords = cls.IMPRODUTIVO[category]
         else:
             return 0
-            
         matches = sum(1 for keyword in keywords if keyword in text_lower)
         word_count = len(text_lower.split())
         if word_count == 0:
             return 0
-            
         return (matches / word_count) * 100

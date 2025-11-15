@@ -1,8 +1,6 @@
 from django.urls import path
 from . import views
-
 app_name = 'analytics'
-
 urlpatterns = [
     path('dashboard/overview/', views.DashboardOverviewView.as_view(), name='dashboard_overview'),
     path('dashboard/trends/', views.ProductivityTrendView.as_view(), name='productivity_trends'),

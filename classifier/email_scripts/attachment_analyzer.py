@@ -3,8 +3,6 @@ Analisador de anexos mencionados em emails.
 """
 import re
 from typing import Dict, List, Optional
-
-
 class AttachmentAnalyzer:
     def __init__(self):
         self.mention_patterns = [
@@ -26,7 +24,6 @@ class AttachmentAnalyzer:
             r'attached\s+file[s]?\b',
             r'attachment[s]?\b'
         ]
-        
         self.suspicious_patterns = [
             r'clique\s+no\s+anexo',
             r'abra\s+o\s+anexo',
@@ -36,7 +33,6 @@ class AttachmentAnalyzer:
             r'arquivo\s+importante',
             r'documento\s+urgente\s+anexo'
         ]
-
     def analyze(self, text: str) -> Dict:
         text_lower = text.lower()
         mentions = self._detect_mentions(text_lower)
@@ -48,14 +44,12 @@ class AttachmentAnalyzer:
             'security_risk_level': security_analysis['risk_level'],
             'security_flags': security_analysis['flags']
         }
-    
     def _detect_mentions(self, text: str) -> List[str]:
         mentions = set()
         for pattern in self.mention_patterns:
             for match in re.finditer(pattern, text, re.IGNORECASE):
                 mentions.add(match.group())
         return list(mentions)
-    
     def _analyze_security(self, text: str) -> Dict:
         suspicious_matches = [
             pattern.replace(r'\s+', ' ').replace(r'\b', '')

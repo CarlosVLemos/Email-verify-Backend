@@ -5,8 +5,6 @@ Extrai pontos-chave usando algoritmos de relevância
 import re
 from typing import List, Dict, Tuple
 from collections import Counter
-
-
 class ExecutiveSummarizer:
     def __init__(self):
         self.importance_keywords = {
@@ -43,7 +41,6 @@ class ExecutiveSummarizer:
                 'progresso', 'andamento', 'status', 'situação', 'evolução'
             ]
         }
-        
         self.sentence_endings = ['.', '!', '?', ';']
         self.noise_words = {
             'artigos': ['o', 'a', 'os', 'as', 'um', 'uma', 'uns', 'umas'],
@@ -51,7 +48,6 @@ class ExecutiveSummarizer:
             'conectivos': ['e', 'ou', 'mas', 'porque', 'pois', 'então', 'assim'],
             'pronomes': ['eu', 'tu', 'ele', 'ela', 'nós', 'vós', 'eles', 'elas', 'me', 'te', 'se']
         }
-
     def summarize(self, text: str, max_sentences: int = 3) -> Dict:
         text = text.strip()
         simple_result = {
@@ -128,7 +124,6 @@ class ExecutiveSummarizer:
                 important_words = self._count_important_words(sentence_lower)
                 noise_words = self._count_noise_words(sentence_lower)
                 score += ((important_words - noise_words) / words) * 10
-            
             scored.append((sentence, max(0, score)))
         return scored
     def _count_important_words(self, sentence: str) -> int:
@@ -148,7 +143,6 @@ class ExecutiveSummarizer:
         top_sentences = sorted(sentence_scores.keys(), key=sentence_scores.get, reverse=True)[:max_sentences]
         top_set = set(top_sentences)
         return [sentence for sentence, _ in scored_sentences if sentence in top_set][:max_sentences]
-
     def _extract_key_points(self, text: str) -> List[str]:
         text_lower = text.lower()
         key_points = []
@@ -188,7 +182,6 @@ class ExecutiveSummarizer:
                 r'(agendar|marcar)\s+[\w\s]+'
             ]
         }
-        
         for category, pattern_list in patterns.items():
             category_points = []
             for pattern in pattern_list:
@@ -197,24 +190,18 @@ class ExecutiveSummarizer:
                     cleaned_match = match.strip()
                     if isinstance(match, tuple):
                         cleaned_match = ' '.join(match).strip()
-                    
                     if len(cleaned_match) > 8 and cleaned_match not in category_points:
                         category_points.append(cleaned_match)
-            
             key_points.extend(category_points[:2])
-        
         seen = set()
         unique_points = []
         for point in key_points:
             if point not in seen and len(point) > 8:
                 seen.add(point)
                 unique_points.append(point.capitalize())
-        
         return unique_points[:6]
-
     def _analyze_email_context(self, text: str) -> Dict:
         text_lower = text.lower()
-        
         communication_types = {
             'solicitacao': ['solicito', 'preciso', 'gostaria', 'poderia', 'favor'],
             'informativo': ['informo', 'comunico', 'aviso', 'notificação'],
@@ -222,32 +209,26 @@ class ExecutiveSummarizer:
             'feedback': ['opinião', 'parecer', 'avaliação', 'feedback'],
             'coordenacao': ['coordenação', 'alinhamento', 'próximos passos']
         }
-        
         detected_types = [
             comm_type for comm_type, keywords in communication_types.items()
             if any(keyword in text_lower for keyword in keywords)
         ]
-        
         sentiment_indicators = {
             'positivo': ['obrigado', 'agradeço', 'excelente', 'ótimo', 'parabéns'],
             'negativo': ['problema', 'erro', 'falha', 'insatisfeito', 'reclamação'],
             'neutro': ['informação', 'dados', 'relatório', 'status']
         }
-        
         detected_sentiment = 'neutro'
         for sentiment, keywords in sentiment_indicators.items():
             if any(keyword in text_lower for keyword in keywords):
                 detected_sentiment = sentiment
                 break
-        
         word_count = len(text.split())
         sentence_count = text.count('.') + text.count('!') + text.count('?')
         complexity = 'baixa' if word_count < 50 else 'media' if word_count < 150 else 'alta'
-        
         action_required = any(action in text_lower for action in [
             'ação necessária', 'preciso', 'solicito', 'favor', 'poderia'
         ])
-        
         return {
             'communication_types': detected_types,
             'primary_sentiment': detected_sentiment,
@@ -262,7 +243,6 @@ class ExecutiveSummarizer:
                 'anexo', 'arquivo', 'documento', 'planilha'
             ])
         }
-
     def _calculate_relevance_score(self, all_scored: List[Tuple[str, float]], selected: List[str]) -> float:
         if not (all_scored and selected):
             return 0.0

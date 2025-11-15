@@ -1,235 +1,301 @@
 # 🤖 Email Intelligence API
 
-API REST completa para classificação inteligente de emails e analytics de produtividade usando IA e NLP.
+> **API REST completa para classificação inteligente de emails e analytics de produtividade usando IA e NLP.**
 
-## 🎯 Características Principais
+Sistema de análise automatizada de emails que classifica mensagens por categoria, tom, urgência e gera respostas sugeridas, além de fornecer métricas detalhadas de produtividade.
 
-### 📧 Email Classifier
-- ✅ Classificação automática por categoria (Produtivo/Social/Improdutivo)
-- ✅ Detecção de subcategoria (Suporte, Dúvida, Spam, etc.)
-- ✅ Análise de tom emocional (Positivo/Negativo/Neutro)
-- ✅ Detecção de urgência (Alta/Média/Baixa)
-- ✅ Geração automática de resposta sugerida
-- ✅ Análise de anexos mencionados
-- ✅ Resumo executivo para emails longos
-- ✅ Processamento em lote (até 50 emails)
-- ✅ Suporte a arquivos (.txt, .pdf, .docx)
+[![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/)
+[![Django](https://img.shields.io/badge/Django-5.2-green.svg)](https://www.djangoproject.com/)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-### 📊 Analytics Dashboard
-- ✅ Métricas de produtividade em tempo real
-- ✅ Tendências temporais e gráficos
-- ✅ Análise de remetentes e domínios
-- ✅ Insights de palavras-chave
-- ✅ Métricas de performance
-- ✅ Distribuição de categorias
-- ✅ Lista paginada com filtros
+---
 
-### � Segurança & Autenticação
-- ✅ API Key Authentication (opcional)
-- ✅ Rate limiting por tipo de usuário
-- ✅ Throttling configurável (burst/anon/authenticated)
-- ✅ CORS configurável
-- ✅ Debug mode protection
-- ✅ Documentação completa em [AUTHENTICATION.md](./AUTHENTICATION.md)
+## 🚀 Como Rodar o Projeto
 
-**Rate Limits:**
-- Burst: 10 requisições/minuto
-- Anônimo: 50 requisições/hora
-- Com API Key: 1000 requisições/hora
+### **Pré-requisitos**
+- **Python 3.11+** ou **Docker**
+- **Git**
 
-### ⚙️ Configuração Flexível
-- ✅ Suporte a SQLite (desenvolvimento/free tier) e PostgreSQL (produção)
-- ✅ Cache configurável: Redis ou Database Cache
-- ✅ Variáveis de ambiente documentadas
-- ✅ Deploy-ready para Render, Railway, Heroku
-- ✅ Integração opcional com Hugging Face para IA
-
-### �🐳 Docker & Infrastructure
-- ✅ Docker Compose completo
-- ✅ PostgreSQL 15 como banco de dados
-- ✅ Redis para cache e filas
-- ✅ Celery para processamento assíncrono
-- ✅ Gunicorn como servidor WSGI
-- ✅ Health checks automáticos
-
-## � Docker (Recomendado para Produção)
-
-### Quick Start com Docker
+### **Opção 1: 🐧 Linux/macOS com Python venv (Recomendado para Desenvolvimento)**
 
 ```bash
-# 1. Clone o repositório
+
 git clone https://github.com/CarlosVLemos/Email-verify-Backend.git
 cd Email-verify-Backend
 
-# 2. Configure variáveis de ambiente
-cp .env.example .env
-# Edite .env com suas configurações
+python3 -m venv venv
+source venv/bin/activate
 
-# 3. Build e start
-cd docker
-docker-compose up -d
-
-# 4. Migrations
-docker-compose exec web python manage.py migrate
-
-# 5. Criar superuser
-docker-compose exec web python manage.py createsuperuser
-
-# 6. Acessar
-# API: http://localhost:8000
-# Swagger: http://localhost:8000/api/docs/
-```
-
-### Script Helper
-
-```bash
-cd docker
-chmod +x docker-manager.sh
-
-# Comandos disponíveis
-./docker-manager.sh start          # Inicia todos os serviços
-./docker-manager.sh stop           # Para todos os serviços
-./docker-manager.sh logs-web       # Ver logs do Django
-./docker-manager.sh shell          # Django shell
-./docker-manager.sh migrate        # Rodar migrations
-./docker-manager.sh help           # Ver todos os comandos
-```
-
-### Serviços Docker
-
-- **web** - Django + Gunicorn (porta 8000)
-- **db** - PostgreSQL 15 (porta 5432)
-- **redis** - Redis 7 (porta 6379)
-- **celery_worker** - Processamento assíncrono
-- **celery_beat** - Tarefas agendadas
-
-## 🚀 Desenvolvimento Local (Sem Docker)
-
-### Pré-requisitos
-- Python 3.8+
-- pip
-- virtualenv (recomendado)
-
-### Instalação
-
-1. **Clone o repositório**
-```bash
-git clone https://github.com/CarlosVLemos/Email-verify-Backend.git
-cd Email-verify-Backend
-```
-
-2. **Crie e ative ambiente virtual**
-```bash
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# ou
-venv\Scripts\activate  # Windows
-```
-
-3. **Instale dependências**
-```bash
 pip install -r requirements.txt
-```
 
-4. **Configure variáveis de ambiente**
-```bash
-# Copie o arquivo de exemplo
+
 cp .env.example .env
+nano .env 
 
-# Edite conforme necessário (valores padrão funcionam para dev)
-nano .env  # ou use seu editor preferido
-```
 
-**📖 Guia Completo:** Veja [CONFIGURACAO_AMBIENTE.md](./CONFIGURACAO_AMBIENTE.md) para documentação detalhada sobre todas as variáveis de ambiente.
-
-**Configurações importantes:**
-- `DATABASE_URL`: SQLite (padrão) ou PostgreSQL
-- `USE_REDIS`: `False` para usar cache em banco (sem Redis)
-- `HF_API_KEY`: Token do Hugging Face para geração de respostas com IA (opcional)
-- `API_KEYS`: Chaves para autenticação da API
-
-5. **Execute migrações**
-```bash
 python manage.py migrate
 
-# Se usar cache em banco (USE_REDIS=False), crie a tabela:
-python manage.py createcachetable
-```
 
-6. **Inicie o servidor**
-```bash
+python manage.py createcachetable
+
+
+python manage.py createsuperuser
+
+
 python manage.py runserver
 ```
 
-7. **Acesse a documentação**
+✅ **Pronto!** Acesse:
+- **API:** http://localhost:8000
+- **Swagger (Documentação):** http://localhost:8000/api/docs/
+- **Admin:** http://localhost:8000/admin/
+
+---
+
+### **Opção 2: 🐳 Docker (Recomendado para Produção)**
+
+```bash
+
+git clone https://github.com/CarlosVLemos/Email-verify-Backend.git
+cd Email-verify-Backend
+
+cp .env.example .env
+nano .env  
+
+docker-compose up -d
+
+docker-compose exec web python manage.py migrate
+
+\
+docker-compose exec web python manage.py createsuperuser
 ```
-http://localhost:8000/api/docs/
+
+✅ **Pronto!** Acesse:
+- **API:** http://localhost:8000
+- **Swagger:** http://localhost:8000/api/docs/
+
+**Comandos úteis do Docker:**
+```bash
+# Ver logs
+docker-compose logs -f web
+
+# Parar containers
+docker-compose down
+
+# Reconstruir
+docker-compose up -d --build
 ```
+
+---
+
+### **⚙️ Configuração das Variáveis de Ambiente**
+
+Edite o arquivo `.env` com suas configurações:
+
+#### **🔧 Para Desenvolvimento (SQLite - Simples):**
+```bash
+# Segurança
+SECRET_KEY=django-insecure-dev-key-change-in-production
+DEBUG=True
+ALLOWED_HOSTS=localhost,127.0.0.1
+
+# Banco de dados (SQLite - padrão, sem configuração extra)
+DB_ENGINE=sqlite
+
+# Cache (Database cache - sem Redis)
+USE_REDIS=False
+
+# API Key para testes
+API_KEYS=dev_test_key_123
+
+# CORS para frontend local
+CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
+
+# IA (Opcional - deixe vazio se não for usar)
+HF_API_KEY=
+```
+
+#### **🐳 Para Docker (PostgreSQL + Redis):**
+```bash
+# Segurança
+SECRET_KEY=django-insecure-dev-key-change-in-production
+DEBUG=True
+ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0
+
+# Banco de dados PostgreSQL (Docker)
+DB_ENGINE=postgresql
+DB_NAME=email_classifier_db
+DB_USER=postgres
+DB_PASSWORD=postgres_password_change_in_production
+DB_HOST=db  # Nome do serviço no docker-compose
+DB_PORT=5432
+
+# Cache Redis (Docker)
+USE_REDIS=True
+REDIS_URL=redis://redis:6379/0
+
+# API Key
+API_KEYS=dev_test_key_123
+
+# CORS
+CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
+
+# IA (Opcional)
+HF_API_KEY=
+```
+
+#### **🚀 Para Produção (Render, Railway, etc):**
+```bash
+# Segurança (GERE CHAVES NOVAS!)
+SECRET_KEY=sua-chave-secreta-gerada-aqui
+DEBUG=False
+ALLOWED_HOSTS=seu-app.onrender.com,seu-dominio.com
+
+# Banco (SQLite para free tier ou PostgreSQL para produção)
+DB_ENGINE=sqlite
+
+# Cache
+USE_REDIS=False
+
+# API Key (GERE NOVA!)
+API_KEYS=prod_sua_chave_api_gerada_aqui
+
+# CORS (URL do seu frontend)
+CORS_ALLOWED_ORIGINS=https://seu-frontend.vercel.app
+
+# Logs
+LOG_LEVEL=INFO
+
+# IA (Opcional)
+HF_API_KEY=
+```
+
+**📝 Gerar chaves seguras:**
+```bash
+# SECRET_KEY
+python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+
+# API_KEY
+python generate_api_key.py prod
+```
+
+---
+
+## 🎯 Características Principais
+
+### 📧 **Email Classifier - Análise Inteligente**
+- ✅ **Classificação automática** por categoria (Produtivo/Social/Improdutivo)
+- ✅ **Detecção de subcategoria** (Suporte, Dúvida, Spam, Promoção, etc.)
+- ✅ **Análise de tom emocional** (Positivo/Negativo/Neutro)
+- ✅ **Detecção de urgência** (Alta/Média/Baixa)
+- ✅ **Geração automática de resposta** sugerida com IA
+- ✅ **Análise de anexos** mencionados no texto
+- ✅ **Resumo executivo** para emails longos
+- ✅ **Processamento em lote** (até 50 emails de uma vez)
+- ✅ **Suporte a arquivos** (.txt, .pdf, .docx)
+
+### 📊 **Analytics Dashboard - Métricas em Tempo Real**
+- ✅ **Métricas de produtividade** em tempo real
+- ✅ **Tendências temporais** com gráficos (diário/horário)
+- ✅ **Análise de remetentes** e domínios mais produtivos/improdutivos
+- ✅ **Insights de palavras-chave** por categoria
+- ✅ **Métricas de performance** do sistema
+- ✅ **Distribuição de categorias** para visualização
+- ✅ **Lista paginada** de emails processados com filtros
+
+### 🔐 **Segurança & Autenticação**
+- ✅ **API Key Authentication** via header `X-API-Key`
+- ✅ **Rate limiting** diferenciado por tipo de usuário
+- ✅ **Throttling configurável** (burst/anon/authenticated)
+- ✅ **CORS** configurável para múltiplas origens
+- ✅ **Debug mode protection** para produção
+
+**📊 Rate Limits:**
+- 🚀 **Burst:** 10 requisições/minuto (todos)
+- 👤 **Sem API Key:** 50 requisições/hora
+- 🔑 **Com API Key:** 1000 requisições/hora
 
 ## 📖 Documentação da API
 
-### Swagger UI (Interativo)
+A API possui documentação interativa completa e sempre atualizada.
+
+### **Swagger UI (Recomendado)**
+Interface interativa para testar todos os endpoints diretamente no navegador.
+
 ```
 http://localhost:8000/api/docs/
 ```
-Interface interativa para testar todos os endpoints.
 
-### ReDoc (Detalhado)
+**Features:**
+- ✅ Teste de endpoints em tempo real
+- ✅ Exemplos de requisições e respostas
+- ✅ Validação de schemas
+- ✅ Suporte a autenticação com API Key
+
+### **ReDoc**
+Documentação detalhada e bem formatada.
+
 ```
 http://localhost:8000/api/redoc/
 ```
-Documentação completa e bem formatada.
 
-### OpenAPI Schema
+### **OpenAPI Schema**
+Schema JSON para integração automática.
+
 ```
 http://localhost:8000/api/schema/
 ```
-Schema JSON para integração automática.
 
-### 📚 Documentação Adicional
+---
 
-- **[CONFIGURACAO_AMBIENTE.md](./CONFIGURACAO_AMBIENTE.md)** - Guia completo de variáveis de ambiente
-  - Configuração de banco de dados (SQLite vs PostgreSQL)
-  - Setup de cache (Redis vs Database)
-  - Tokens e API Keys
-  - Deployment em diferentes providers
-  - Troubleshooting
+## 🔗 Principais Endpoints
 
-- **[AUTHENTICATION.md](./AUTHENTICATION.md)** - Sistema de autenticação
-  - Como usar API Keys
-  - Rate limiting e throttling
-  - Exemplos de uso (cURL, Python, JavaScript)
-  - Segurança e boas práticas
+### **📧 Email Classifier**
 
-## 🔗 Endpoints Principais
-
-### Email Classifier
-
-#### Classificar Email
+#### **Classificar Email Único**
 ```bash
 POST /api/classifier/classify/
 Content-Type: application/json
+X-API-Key: sua_api_key_aqui
 
 {
-  "email_text": "Olá, preciso de ajuda com o sistema..."
+  "email_text": "Olá, preciso de ajuda com o sistema de login. É urgente!"
 }
 ```
 
-#### Resumo Executivo
+**Resposta:**
+```json
+{
+  "success": true,
+  "data": {
+    "topic": "Suporte Técnico",
+    "category": "Produtivo",
+    "tone": "Neutro",
+    "urgency": "Alta",
+    "suggested_response": "Olá! Agradecemos por entrar em contato...",
+    "word_count": 12,
+    "processing_time_ms": 234
+  }
+}
+```
+
+#### **Resumo Executivo**
 ```bash
 POST /api/classifier/summary/
 Content-Type: application/json
+X-API-Key: sua_api_key_aqui
 
 {
-  "email_text": "Email muito longo...",
+  "email_text": "Email muito longo com várias informações...",
   "max_sentences": 3
 }
 ```
 
-#### Processamento em Lote
+#### **Processamento em Lote**
 ```bash
 POST /api/classifier/batch/
 Content-Type: application/json
+X-API-Key: sua_api_key_aqui
 
 {
   "emails": [
@@ -240,109 +306,196 @@ Content-Type: application/json
 }
 ```
 
-### Analytics Dashboard
+### **📊 Analytics Dashboard**
 
-#### Overview do Dashboard
+#### **Overview Geral**
 ```bash
 GET /api/analytics/dashboard/overview/?days=30
+X-API-Key: sua_api_key_aqui
 ```
 
-#### Tendências de Produtividade
+#### **Tendências de Produtividade**
 ```bash
 GET /api/analytics/dashboard/trends/?days=30&granularity=daily
+X-API-Key: sua_api_key_aqui
 ```
 
-#### Distribuição de Categorias
+#### **Distribuição de Categorias**
 ```bash
 GET /api/analytics/dashboard/categories/?days=30
+X-API-Key: sua_api_key_aqui
 ```
 
-## 📁 Estrutura do Projeto
-
-```
-Email-verify-Backend/
-├── classifier/              # App de classificação de emails
-│   ├── email_scripts/       # Lógica de IA e classificação
-│   ├── serializers.py       # Serializers DRF
-│   ├── views_api.py         # Views da API
-│   └── urls.py              # Rotas do classifier
-├── analytics/               # App de analytics e métricas
-│   ├── models.py            # Models de dados
-│   ├── views.py             # Views do dashboard
-│   ├── serializers.py       # Serializers de analytics
-│   ├── utils/               # Utilitários (helpers, queries, services)
-│   └── urls.py              # Rotas de analytics
-├── core/                    # Configurações do projeto
-│   ├── settings.py          # Settings Django
-│   └── urls.py              # URLs principais
-├── manage.py                # CLI Django
-└── requirements.txt         # Dependências Python
+#### **Análise de Remetentes**
+```bash
+GET /api/analytics/dashboard/senders/?limit=20&min_emails=3
+X-API-Key: sua_api_key_aqui
 ```
 
-## 🛠️ Tecnologias Utilizadas
+### **🏥 Health Check**
+```bash
+GET /api/classifier/health/
+```
 
-### Backend
-- **Django 5.2** - Framework web
-- **Django REST Framework 3.16** - API REST
-- **drf-spectacular** - Documentação OpenAPI/Swagger
-- **NLTK** - Processamento de linguagem natural
+**Resposta:**
+```json
+{
+  "status": "healthy",
+  "version": "1.0.0",
+  "services": {
+    "database": "healthy",
+    "analytics": "healthy",
+    "classifier": "healthy"
+  }
+}
+```
 
-### Infrastructure
-- **PostgreSQL 15** - Banco de dados
-- **Redis 7** - Cache e message broker
-- **Celery** - Processamento assíncrono
-- **Gunicorn** - WSGI server
-- **Whitenoise** - Static files
+---
 
-### Processamento
+## 🔑 Autenticação com API Key
+
+### **Como Usar**
+
+Todas as requisições devem incluir o header `X-API-Key`:
+
+```bash
+curl -X POST https://sua-api.com/api/classifier/classify/ \
+  -H "X-API-Key: sua_chave_api_aqui" \
+  -H "Content-Type: application/json" \
+  -d '{"email_text": "Seu email aqui"}'
+```
+
+### **Exemplo com JavaScript/Fetch**
+```javascript
+const response = await fetch('https://sua-api.com/api/classifier/classify/', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'X-API-Key': 'sua_chave_api_aqui'
+  },
+  body: JSON.stringify({
+    email_text: 'Seu email aqui'
+  })
+});
+
+const data = await response.json();
+console.log(data);
+```
+
+### **Exemplo com Python/Requests**
+```python
+import requests
+
+url = 'https://sua-api.com/api/classifier/classify/'
+headers = {
+    'Content-Type': 'application/json',
+    'X-API-Key': 'sua_chave_api_aqui'
+}
+payload = {
+    'email_text': 'Seu email aqui'
+}
+
+response = requests.post(url, json=payload, headers=headers)
+data = response.json()
+print(data)
+```
+
+---
+
+## �️ Tecnologias Utilizadas
+
+### **Backend & Framework**
+- **Python 3.11+** - Linguagem de programação
+- **Django 5.2** - Framework web robusto e escalável
+- **Django REST Framework 3.16** - API REST toolkit
+- **drf-spectacular** - Documentação OpenAPI/Swagger automática
+
+### **Processamento & IA**
+- **NLTK** - Natural Language Processing
+- **Hugging Face** (opcional) - Modelos de IA para geração de respostas
 - **pdfplumber** - Extração de texto de PDFs
 - **python-docx** - Leitura de arquivos Word
-- **NLTK** - NLP e stemming
+
+### **Banco de Dados & Cache**
+- **SQLite** - Banco padrão para desenvolvimento
+- **PostgreSQL 15** - Banco recomendado para produção
+- **Redis 7** (opcional) - Cache e message broker
+
+### **Servidor & Deploy**
+- **Gunicorn** - WSGI HTTP Server para produção
+- **Whitenoise** - Servir arquivos estáticos
+- **Docker & Docker Compose** - Containerização
+
+### **Segurança & Autenticação**
+- **API Key Authentication** - Sistema de autenticação via chave
+- **CORS Headers** - Controle de origem de requisições
+- **Django Security Middleware** - Proteções de segurança
+
+---
 
 ## 📁 Estrutura do Projeto
 
 ```
 Email-verify-Backend/
-├── docker/                  # Arquivos Docker
-│   ├── Dockerfile
-│   ├── docker-compose.yml
-│   ├── docker-manager.sh
-│   └── test_endpoints.sh
-├── classifier/              # App de classificação
-│   ├── email_scripts/       # Lógica de IA
+├── 📁 classifier/              # App de classificação de emails
+│   ├── 📁 email_scripts/       # Lógica de IA e classificação
+│   │   ├── ai_classifier.py
+│   │   ├── email_classifier.py
+│   │   ├── nlp_processor.py
+│   │   └── ...
+│   ├── 📁 services/            # Camada de serviços
+│   ├── 📁 utils/               # Utilitários
 │   ├── serializers.py
 │   ├── views.py
 │   └── urls.py
-├── analytics/               # App de analytics
-│   ├── models.py
-│   ├── views.py
-│   ├── tasks.py             # Celery tasks
-│   ├── cache_decorators.py  # Cache helpers
+│
+├── 📁 analytics/               # App de analytics e métricas
+│   ├── 📁 utils/               # Helpers e queries
+│   │   ├── query_helpers.py
+│   │   ├── request_helpers.py
+│   │   └── services.py
+│   ├── models.py               # Models de dados
+│   ├── views.py                # Views do dashboard
+│   ├── serializers.py
 │   └── urls.py
-├── core/                    # Configurações
-│   ├── settings.py
-│   ├── celery.py
-│   └── urls.py
-├── manage.py
-└── requirements.txt
+│
+├── 📁 core/                    # Configurações do projeto
+│   ├── 📁 middleware/          # Middlewares customizados
+│   │   ├── authentication.py   # Autenticação API Key
+│   │   └── throttling.py       # Rate limiting
+│   ├── settings.py             # Configurações Django
+│   ├── urls.py                 # URLs principais
+│   ├── apps.py                 # Config de apps
+│   └── wsgi.py
+│
+├── � docker/                  # Arquivos Docker
+│   ├── Dockerfile
+│   ├── Dockerfile.prod
+│   └── README.md
+│
+├── 📁 tests/                   # Testes automatizados
+│
+├── 📄 manage.py                # CLI do Django
+├── � requirements.txt         # Dependências Python
+├── 📄 .env.example             # Exemplo de variáveis de ambiente
+├── � docker-compose.yml       # Compose para desenvolvimento
+├── � docker-compose.prod.yml  # Compose para produção
+├── � render.yaml              # Config para deploy no Render
+├── 📄 build.sh                 # Script de build
+└── 📄 README.md                # Este arquivo
 ```
 
-## 📊 Analytics Automático
-
-Todos os emails processados são automaticamente salvos no sistema de analytics, permitindo:
-
-- 📈 Rastreamento de tendências ao longo do tempo
-- 🎯 Métricas de produtividade
-- 🔍 Análise de padrões de comunicação
-- 📊 Dashboard em tempo real
-- 💡 Insights sobre remetentes e categorias
+---
 
 ## 🧪 Testes
 
+### **Executar Todos os Testes**
 ```bash
-# Executar todos os testes
 python manage.py test
+```
 
+### **Testar App Específico**
+```bash
 # Testar apenas classifier
 python manage.py test classifier
 
@@ -350,82 +503,146 @@ python manage.py test classifier
 python manage.py test analytics
 ```
 
-## � Roadmap
-
-### ✅ Concluído
-- [x] Classificação inteligente de emails
-- [x] Analytics dashboard completo
-- [x] Docker com PostgreSQL e Redis
-- [x] Cache em múltiplos níveis
-- [x] Processamento assíncrono (Celery)
-- [x] Documentação Swagger completa
-- [x] Suporte a múltiplos formatos de arquivo
-
-### 🚧 Em Desenvolvimento
-- [ ] Autenticação JWT
-- [ ] Rate limiting por IP
-- [ ] Integração com APIs de IA externas
-
-### 🔮 Futuro
-- [ ] Machine Learning para classificação
-- [ ] Suporte a mais idiomas
-- [ ] Dashboard web frontend (React/Vue)
-- [ ] Exportação de relatórios
-- [ ] Webhooks para notificações
-
-## 🔐 Segurança & Produção
-
-### Checklist de Deploy
-
-- [ ] Mudar `SECRET_KEY` no `.env`
-- [ ] Definir `DEBUG=False`
-- [ ] Configurar `ALLOWED_HOSTS` com domínios reais
-- [ ] Usar senhas fortes para PostgreSQL
-- [ ] Configurar CORS com origens específicas
-- [ ] Habilitar HTTPS
-- [ ] Implementar rate limiting
-- [ ] Configurar backup do PostgreSQL
-- [ ] Monitorar logs e métricas
-
-## 🧪 Testes de Endpoints
-
+### **Com Coverage**
 ```bash
-cd docker
-chmod +x test_endpoints.sh
-./test_endpoints.sh
+coverage run --source='.' manage.py test
+coverage report
+coverage html  # Gera relatório HTML
 ```
 
-Este script testa:
-- Health check
-- Classificação de email
-- Dashboard overview
-- Resumo executivo
-- Processamento em lote
+---
+
+## 🚢 Deploy em Produção
+
+### **Deploy no Render (Recomendado)**
+
+1. **Faça fork/clone do repositório**
+
+2. **Crie um Web Service no Render**
+   - Conecte seu repositório GitHub
+   - O Render detectará automaticamente o `render.yaml`
+
+3. **Configure as variáveis de ambiente:**
+   ```bash
+   SECRET_KEY=sua-chave-secreta-gerada
+   DEBUG=False
+   ALLOWED_HOSTS=seu-app.onrender.com
+   DB_ENGINE=sqlite
+   USE_REDIS=False
+   API_KEYS=prod_sua_chave_api_gerada
+   CORS_ALLOWED_ORIGINS=https://seu-frontend.com
+   LOG_LEVEL=INFO
+   ```
+
+4. **Deploy automático!** 🎉
+
+**URLs de exemplo:**
+- API: `https://seu-app.onrender.com`
+- Swagger: `https://seu-app.onrender.com/api/docs/`
+
+### **Deploy em Outros Serviços**
+
+O projeto é compatível com:
+- ✅ **Railway**
+- ✅ **Heroku**
+- ✅ **Google Cloud Run**
+- ✅ **AWS Elastic Beanstalk**
+- ✅ **Azure App Service**
+
+**Requisitos mínimos:**
+- Python 3.11+
+- 512 MB RAM
+- Suporte a SQLite ou PostgreSQL
+
+---
+
+## � Segurança em Produção
+
+### **Checklist de Deploy:**
+
+- [ ] Gerar nova `SECRET_KEY` forte
+- [ ] Definir `DEBUG=False`
+- [ ] Configurar `ALLOWED_HOSTS` com domínios reais
+- [ ] Usar senhas fortes para banco de dados
+- [ ] Configurar `CORS_ALLOWED_ORIGINS` com origens específicas
+- [ ] Habilitar HTTPS (certificado SSL)
+- [ ] Implementar rate limiting adequado
+- [ ] Configurar backup do banco de dados
+- [ ] Monitorar logs e métricas
+- [ ] Manter dependências atualizadas
+
+### **Gerar Chaves Seguras:**
+
+```bash
+# SECRET_KEY
+python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+
+# API_KEY
+python generate_api_key.py prod
+```
+
+---
 
 ## 🤝 Contribuindo
 
-1. Fork o projeto
-2. Crie sua feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit suas mudanças (`git commit -m 'Add some AmazingFeature'`)
-4. Push para a branch (`git push origin feature/AmazingFeature`)
-5. Abra um Pull Request
+Contribuições são bem-vindas! Siga os passos:
+
+1. **Fork o projeto**
+2. **Crie uma branch** para sua feature (`git checkout -b feature/MinhaFeature`)
+3. **Commit suas mudanças** (`git commit -m 'Add: Nova feature incrível'`)
+4. **Push para a branch** (`git push origin feature/MinhaFeature`)
+5. **Abra um Pull Request**
+
+### **Diretrizes:**
+- Escreva testes para novas features
+- Mantenha o código limpo e documentado
+- Siga o estilo de código PEP 8
+- Atualize a documentação quando necessário
+
+---
 
 ## 📝 Licença
 
-Este projeto está sob a licença MIT. Veja o arquivo `LICENSE` para mais detalhes.
+Este projeto está sob a licença **MIT**. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
+
+---
 
 ## 👤 Autor
 
 **Carlos V. Lemos**
-- GitHub: [@CarlosVLemos](https://github.com/CarlosVLemos)
-- Repositório: [Email-verify-Backend](https://github.com/CarlosVLemos/Email-verify-Backend)
 
-## 🙏 Agradecimentos
-
-- Comunidade Django
-- Django REST Framework
-- drf-spectacular para documentação automática
+- 🔗 GitHub: [@CarlosVLemos](https://github.com/CarlosVLemos)
+- 📧 Email: contato@carlosvlemos.dev
+- 🌐 Repositório: [Email-verify-Backend](https://github.com/CarlosVLemos/Email-verify-Backend)
 
 ---
 
-**⭐ Se este projeto foi útil, considere dar uma estrela no GitHub!**
+## 🙏 Agradecimentos
+
+- Comunidade **Django** e **Django REST Framework**
+- **drf-spectacular** pela documentação automática
+- Todos os contribuidores do projeto
+
+---
+
+## 📚 Recursos Adicionais
+
+### **Documentação Oficial:**
+- [Django Documentation](https://docs.djangoproject.com/)
+- [Django REST Framework](https://www.django-rest-framework.org/)
+- [drf-spectacular](https://drf-spectacular.readthedocs.io/)
+
+### **Tutoriais e Guias:**
+- [Deploy no Render](https://render.com/docs/deploy-django)
+- [PostgreSQL com Django](https://docs.djangoproject.com/en/5.2/ref/databases/#postgresql-notes)
+- [Docker com Django](https://docs.docker.com/samples/django/)
+
+---
+
+<div align="center">
+
+### ⭐ **Se este projeto foi útil, considere dar uma estrela no GitHub!** ⭐
+
+**Desenvolvido com ❤️ por [Carlos V. Lemos](https://github.com/CarlosVLemos)**
+
+</div>

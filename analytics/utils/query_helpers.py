@@ -6,25 +6,18 @@ from django.db.models import ( Count, Avg, Sum, Q, F, FloatField,Value, Expressi
 from django.utils import timezone
 from datetime import timedelta
 import logging
-
 logger = logging.getLogger(__name__)
-
-
 class AnalyticsQueryBuilder:
     """Builder para queries comuns de analytics"""
-    
     @staticmethod
     def get_emails_in_period(date_from, base_queryset=None):
         """
         Retorna queryset de emails no período especificado
         """
         from analytics.models import EmailAnalytics
-        
         if base_queryset is None:
             base_queryset = EmailAnalytics.objects.all()
-        
         return base_queryset.filter(processed_at__gte=date_from)
-    
     @staticmethod
     def get_productivity_stats(date_from):
         """
@@ -32,7 +25,6 @@ class AnalyticsQueryBuilder:
         Returns: dict com métricas agregadas
         """
         from analytics.models import EmailAnalytics
-        
         try:
             stats = EmailAnalytics.objects.filter(
                 processed_at__gte=date_from
@@ -48,12 +40,9 @@ class AnalyticsQueryBuilder:
             total = stats['total_count'] or 0
             productive = stats['productive'] or 0
             unproductive = stats['unproductive'] or 0
-            
             stats['productivity_rate'] = (productive / max(total, 1)) * 100 if total > 0 else 0
             stats['attachment_rate'] = (stats['emails_with_attachments'] / max(total, 1)) * 100 if total > 0 else 0
-            
             return stats
-            
         except Exception as e:
             logger.error(f"Error calculating productivity stats: {e}")
             return {
@@ -66,14 +55,12 @@ class AnalyticsQueryBuilder:
                 'avg_word_count': 0,
                 'attachment_rate': 0
             }
-    
     @staticmethod
     def get_top_categories(period_field='last_30_days', limit=10):
         """
         Retorna top categorias por período
         """
         from analytics.models import CategoryStats
-        
         try:
             return CategoryStats.objects.filter(
                 **{f'{period_field}__gt': 0}
@@ -84,14 +71,12 @@ class AnalyticsQueryBuilder:
         except Exception as e:
             logger.error(f"Error getting top categories: {e}")
             return []
-    
     @staticmethod
     def get_top_senders(min_emails=5, limit=20, order_by='productivity_rate'):
         """
         Retorna top remetentes por critério especificado
         """
         from analytics.models import SenderStats
-        
         try:
             return SenderStats.objects.filter(
                 total_count__gte=min_emails
@@ -103,24 +88,20 @@ class AnalyticsQueryBuilder:
         except Exception as e:
             logger.error(f"Error getting top senders: {e}")
             return []
-    
     @staticmethod
     def get_sender_segment(min_emails=3, limit=20, segment='productive'):
         """
         Retorna lista de remetentes segmentada (produtivos ou improdutivos)
         """
         from analytics.models import SenderStats
-
         try:
             queryset = SenderStats.objects.filter(total_count__gte=min_emails)
-
             if segment == 'productive':
                 queryset = queryset.filter(productivity_rate__gt=0).order_by('-productivity_rate', '-total_count')
             elif segment == 'unproductive':
                 queryset = queryset.filter(productivity_rate__lt=100).order_by('productivity_rate', '-total_count')
             else:
                 queryset = queryset.order_by('-total_count')
-
             return queryset.values(
                 'sender_identifier',
                 'sender_type',
@@ -131,18 +112,15 @@ class AnalyticsQueryBuilder:
                 'first_seen',
                 'last_seen'
             )[:limit]
-
         except Exception as e:
             logger.error(f"Error getting sender segment ({segment}): {e}")
             return []
-
     @staticmethod
     def get_timeline_data(date_from, granularity='daily'):
         """
         Retorna dados de série temporal para gráficos
         """
         from analytics.models import TimeSeriesData
-        
         try:
             return TimeSeriesData.objects.filter(
                 date__gte=date_from.date(),
@@ -154,14 +132,12 @@ class AnalyticsQueryBuilder:
         except Exception as e:
             logger.error(f"Error getting timeline data: {e}")
             return []
-    
     @staticmethod
     def get_keyword_insights(category, limit=20, period_field='frequency'):
         """
         Retorna insights de palavras-chave por categoria
         """
         from analytics.models import KeywordFrequency
-        
         try:
             return KeywordFrequency.objects.filter(
                 category=category
@@ -172,14 +148,12 @@ class AnalyticsQueryBuilder:
         except Exception as e:
             logger.error(f"Error getting keyword insights: {e}")
             return []
-    
     @staticmethod
     def get_trending_keywords(limit=20):
         """
         Retorna palavras-chave em tendência considerando últimos 7 dias
         """
         from analytics.models import KeywordFrequency
-
         try:
             trend_ratio = ExpressionWrapper(
                 F('last_7_days_freq') * Value(7.0) /
@@ -190,7 +164,6 @@ class AnalyticsQueryBuilder:
                 ),
                 output_field=FloatField()
             )
-
             return KeywordFrequency.objects.filter(
                 last_7_days_freq__gt=0
             ).annotate(
@@ -203,18 +176,15 @@ class AnalyticsQueryBuilder:
                 'avg_confidence_when_present',
                 'trend_ratio'
             )[:limit]
-
         except Exception as e:
             logger.error(f"Error getting trending keywords: {e}")
             return []
-
     @staticmethod
     def get_domains_summary(min_emails=5, limit=15):
         """
         Retorna resumo agregado por domínios
         """
         from analytics.models import SenderStats
-        
         try:
             return SenderStats.objects.filter(
                 sender_type='domain',
@@ -228,14 +198,12 @@ class AnalyticsQueryBuilder:
         except Exception as e:
             logger.error(f"Error getting domains summary: {e}")
             return []
-    
     @staticmethod
     def get_performance_distribution(date_from):
         """
         Calcula distribuição de performance (tempo de processamento e confiança)
         """
         from analytics.models import EmailAnalytics
-        
         try:
             processing_ranges = [
                 (0, 100, '< 100ms'),
@@ -250,7 +218,6 @@ class AnalyticsQueryBuilder:
                 (0.7, 0.9, 'Alta (70-90%)'),
                 (0.9, 1.0, 'Muito Alta (> 90%)')
             ]
-            
             base_queryset = EmailAnalytics.objects.filter(processed_at__gte=date_from)
             total_emails = base_queryset.count()
             processing_dist = []
@@ -262,34 +229,29 @@ class AnalyticsQueryBuilder:
                         processing_time_ms__gte=min_time,
                         processing_time_ms__lt=max_time
                     ).count()
-                
                 percentage = (count / max(total_emails, 1)) * 100
                 processing_dist.append({
                     'range': label,
                     'count': count,
                     'percentage': round(percentage, 2)
                 })
-            
             confidence_dist = []
             for min_conf, max_conf, label in confidence_ranges:
                 count = base_queryset.filter(
                     confidence_score__gte=min_conf,
                     confidence_score__lt=max_conf
                 ).count()
-                
                 percentage = (count / max(total_emails, 1)) * 100
                 confidence_dist.append({
                     'range': label,
                     'count': count,
                     'percentage': round(percentage, 2)
                 })
-            
             return {
                 'processing_distribution': processing_dist,
                 'confidence_distribution': confidence_dist,
                 'total_emails': total_emails
             }
-            
         except Exception as e:
             logger.error(f"Error calculating performance distribution: {e}")
             return {
@@ -297,14 +259,12 @@ class AnalyticsQueryBuilder:
                 'confidence_distribution': [],
                 'total_emails': 0
             }
-
     @staticmethod
     def get_performance_stats(date_from):
         """
         Retorna métricas agregadas de performance geral
         """
         from analytics.models import EmailAnalytics
-
         try:
             base_queryset = EmailAnalytics.objects.filter(processed_at__gte=date_from)
             stats = base_queryset.aggregate(
@@ -317,7 +277,6 @@ class AnalyticsQueryBuilder:
                 processed_at__date=timezone.now().date()
             ).count()
             return stats
-
         except Exception as e:
             logger.error(f"Error getting performance stats: {e}")
             return {
@@ -327,11 +286,8 @@ class AnalyticsQueryBuilder:
                 'confidence_above_70': 0,
                 'total_processed_today': 0,
             }
-
-
 class AnalyticsFormatter:
     """Formatadores para dados de analytics"""
-    
     @staticmethod
     def format_timeline_label(date, hour, granularity):
         """
@@ -344,7 +300,6 @@ class AnalyticsFormatter:
         except Exception as e:
             logger.warning(f"Error formatting timeline label: {e}")
             return str(date)
-    
     @staticmethod
     def calculate_trend_analysis(timeline_data):
         """
@@ -361,7 +316,6 @@ class AnalyticsFormatter:
             first_rate = timeline_data[0].get('productivity_rate', 0)
             last_rate = timeline_data[-1].get('productivity_rate', 0)
             total_change = last_rate - first_rate
-
             if total_change > 2:
                 trend_direction = 'increasing'
             elif total_change < -2:
@@ -370,14 +324,12 @@ class AnalyticsFormatter:
                 trend_direction = 'stable'
             best_period = max(timeline_data, key=lambda x: x.get('productivity_rate', 0))
             worst_period = min(timeline_data, key=lambda x: x.get('productivity_rate', 0))
-            
             return {
                 'total_change': round(total_change, 2),
                 'trend_direction': trend_direction,
                 'best_period': best_period,
                 'worst_period': worst_period
             }
-            
         except Exception as e:
             logger.error(f"Error calculating trend analysis: {e}")
             return {

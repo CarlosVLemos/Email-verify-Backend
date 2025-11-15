@@ -3,8 +3,6 @@ Serializers para Classifier API
 Validação de entrada e formatação de saída
 """
 from rest_framework import serializers
-
-
 class EmailTextInputSerializer(serializers.Serializer):
     """Serializer para entrada de texto de email"""
     email_text = serializers.CharField(
@@ -20,8 +18,6 @@ class EmailTextInputSerializer(serializers.Serializer):
             'max_length': 'O texto não pode exceder 50000 caracteres'
         }
     )
-
-
 class EmailFileInputSerializer(serializers.Serializer):
     """Serializer para upload de arquivo"""
     file = serializers.FileField(
@@ -32,8 +28,6 @@ class EmailFileInputSerializer(serializers.Serializer):
             'invalid': 'Arquivo inválido'
         }
     )
-
-
 class AttachmentAnalysisSerializer(serializers.Serializer):
     """Serializer para análise de anexos"""
     has_attachments_mentioned = serializers.BooleanField(help_text="Se anexos foram mencionados no texto")
@@ -42,8 +36,6 @@ class AttachmentAnalysisSerializer(serializers.Serializer):
         help_text="Palavras-chave relacionadas a anexos detectadas"
     )
     score = serializers.IntegerField(help_text="Score de relevância dos anexos (0-10)")
-
-
 class EmailClassificationOutputSerializer(serializers.Serializer):
     """Serializer para saída de classificação de email"""
     topic = serializers.CharField(
@@ -87,8 +79,6 @@ class EmailClassificationOutputSerializer(serializers.Serializer):
         allow_null=True,
         help_text="Nome do remetente (se fornecido)"
     )
-
-
 class SummaryInputSerializer(serializers.Serializer):
     """Serializer para entrada de resumo executivo"""
     email_text = serializers.CharField(
@@ -115,8 +105,6 @@ class SummaryInputSerializer(serializers.Serializer):
             'max_value': 'max_sentences não pode exceder 10'
         }
     )
-
-
 class SummaryOutputSerializer(serializers.Serializer):
     """Serializer para saída de resumo executivo"""
     summary = serializers.ListField(
@@ -139,8 +127,6 @@ class SummaryOutputSerializer(serializers.Serializer):
     summary_word_count = serializers.IntegerField(
         help_text="Quantidade de palavras no resumo gerado"
     )
-
-
 class BatchEmailInputSerializer(serializers.Serializer):
     """Serializer para entrada de processamento em lote"""
     emails = serializers.ListField(
@@ -155,25 +141,27 @@ class BatchEmailInputSerializer(serializers.Serializer):
             'max_length': 'O limite é de 50 emails por requisição'
         }
     )
-
-
 class BatchEmailResultSerializer(serializers.Serializer):
-    """Serializer para resultado individual de batch"""
+    """Serializer para resultado individual de batch - Mesma estrutura do endpoint individual"""
     email_id = serializers.IntegerField(help_text="ID do email no batch")
     status = serializers.CharField(help_text="Status do processamento: 'success' ou 'error'")
-    classification = EmailClassificationOutputSerializer(
-        required=False,
-        help_text="Resultado da classificação (se sucesso)"
-    )
-    error = serializers.CharField(
-        required=False,
-        help_text="Mensagem de erro (se falha)"
-    )
-    preview = serializers.CharField(
-        help_text="Prévia do texto do email (primeiras palavras)"
-    )
-
-
+    
+    # Campos de classificação diretamente no nível raiz (igual ao endpoint individual)
+    topic = serializers.CharField(required=False, help_text="Subcategoria classificada")
+    category = serializers.CharField(required=False, help_text="Categoria principal")
+    confidence = serializers.FloatField(required=False, allow_null=True, help_text="Score de confiança")
+    tone = serializers.CharField(required=False, help_text="Tom detectado")
+    urgency = serializers.CharField(required=False, help_text="Nível de urgência")
+    suggested_response = serializers.CharField(required=False, help_text="Sugestão de resposta")
+    attachment_analysis = AttachmentAnalysisSerializer(required=False, help_text="Análise de anexos")
+    word_count = serializers.IntegerField(required=False, help_text="Quantidade de palavras")
+    char_count = serializers.IntegerField(required=False, help_text="Quantidade de caracteres")
+    processing_time_ms = serializers.IntegerField(required=False, help_text="Tempo de processamento")
+    sender_email = serializers.EmailField(required=False, allow_null=True, help_text="Email do remetente")
+    sender_name = serializers.CharField(required=False, allow_null=True, help_text="Nome do remetente")
+    
+    error = serializers.CharField(required=False, help_text="Mensagem de erro (se falha)")
+    preview = serializers.CharField(help_text="Prévia do texto do email")
 class BatchEmailOutputSerializer(serializers.Serializer):
     """Serializer para saída de processamento em lote"""
     request_id = serializers.CharField(
@@ -198,8 +186,6 @@ class BatchEmailOutputSerializer(serializers.Serializer):
         child=BatchEmailResultSerializer(),
         help_text="Lista de resultados individuais"
     )
-
-
 class ErrorResponseSerializer(serializers.Serializer):
     """Serializer para respostas de erro padronizadas"""
     error = serializers.CharField(help_text="Mensagem de erro principal")
@@ -211,8 +197,6 @@ class ErrorResponseSerializer(serializers.Serializer):
         required=False,
         help_text="Erros específicos de campos (validação)"
     )
-
-
 class HealthCheckSerializer(serializers.Serializer):
     """Serializer para health check da API"""
     status = serializers.CharField(help_text="Status da API: 'healthy' ou 'unhealthy'")
@@ -221,8 +205,6 @@ class HealthCheckSerializer(serializers.Serializer):
     services = serializers.DictField(
         help_text="Status de serviços dependentes (analytics, etc)"
     )
-
-
 class ResponseHelper:
     """Classe auxiliar para formatação de respostas"""
     @staticmethod
@@ -231,7 +213,6 @@ class ResponseHelper:
         if field_errors:
             response['field_errors'] = field_errors
         return response
-
     @staticmethod
     def format_success_response(data):
         return data

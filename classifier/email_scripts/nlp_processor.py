@@ -6,45 +6,33 @@ import re
 import unicodedata
 import os
 from typing import List, Dict
-
 try:
     import nltk
     from nltk.corpus import stopwords
     from nltk.tokenize import word_tokenize
     from nltk.stem import RSLPStemmer
-    
     nltk_data_dir = "/tmp/nltk_data"
-    
     if not os.path.exists(nltk_data_dir):
         os.makedirs(nltk_data_dir)
-    
     nltk.data.path = [nltk_data_dir]
-    
     recursos_necessarios = ['punkt', 'punkt_tab', 'stopwords', 'rslp']
-    
     for recurso in recursos_necessarios:
         try:
             nltk.download(recurso, quiet=True, download_dir=nltk_data_dir)
         except Exception as e:
             print(f'Aviso ao baixar {recurso}: {e}')
-    
     NLTK_AVAILABLE = True
 except ImportError:
     NLTK_AVAILABLE = False
-
-
 class NLPProcessor:
     """Processador de linguagem natural para emails em português"""
-    
     def __init__(self):
         self.tokenizer = nltk.tokenize.word_tokenize
         self.stemmer = nltk.stem.RSLPStemmer()
         self.stopwords = set(nltk.corpus.stopwords.words('portuguese'))
-
     def preprocess(self, text: str) -> Dict[str, any]:
         """
         Pré-processa o texto do email aplicando técnicas de NLP
-        
         Returns:
             Dict contendo:
             - cleaned_text: Texto limpo
@@ -57,25 +45,18 @@ class NLPProcessor:
             - sentence_count: Contagem de sentenças
         """
         cleaned = self._normalize_text(text)
-        
         tokens = self.tokenizer(cleaned, language='portuguese')
-        
         filtered_tokens = [
             token for token in tokens 
             if token.lower() not in self.stopwords and len(token) > 2
         ]
-        
         stems = [self.stemmer.stem(token) for token in filtered_tokens]
-        
         bigrams = self._extract_ngrams(tokens, 2)  # "não funciona", "mega promoção"
         trigrams = self._extract_ngrams(tokens, 3)  # "problema muito urgente"
-        
         from collections import Counter
         word_freq = Counter(filtered_tokens)
-        
         sentences = re.split(r'[.!?]+', text)
         sentence_count = len([s for s in sentences if s.strip()])
-        
         return {
             'cleaned_text': cleaned,
             'tokens': tokens,
@@ -93,7 +74,6 @@ class NLPProcessor:
             'unique_words': len(set(tokens)),
             'lexical_diversity': len(set(tokens)) / len(tokens) if tokens else 0
         }
-    
     def _extract_ngrams(self, tokens: List[str], n: int) -> List[str]:
         """Extrai n-gramas do texto tokenizado"""
         ngrams = []
@@ -101,7 +81,6 @@ class NLPProcessor:
             ngram = ' '.join(tokens[i:i+n]).lower()
             ngrams.append(ngram)
         return ngrams
-    
     def _normalize_text(self, text: str) -> str:
         """Normaliza o texto removendo acentos, caracteres especiais etc"""
         text = ''.join(
@@ -114,18 +93,15 @@ class NLPProcessor:
         text = re.sub(r'[^\w\s.!?]', ' ', text)
         text = re.sub(r'\s+', ' ', text).strip()
         return text
-    
     def extract_keywords(self, text: str, top_n: int = 10) -> List[str]:
         """Extrai palavras-chave mais relevantes do texto"""
         processed = self.preprocess(text)
         from collections import Counter
         stem_freq = Counter(processed['stems'])
         return [word for word, _ in stem_freq.most_common(top_n)]
-    
     def get_text_stats(self, text: str) -> Dict[str, any]:
         """Retorna estatísticas detalhadas do texto"""
         processed = self.preprocess(text)
-        
         return {
             'caracteres_totais': len(text),
             'palavras_totais': processed['word_count'],

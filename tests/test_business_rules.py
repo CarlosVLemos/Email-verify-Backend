@@ -4,19 +4,15 @@ Script de teste para validar as regras de negócio do classificador de emails
 import os
 import sys
 import django
-
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 django.setup()
-
 from classifier.email_scripts import EmailClassifier, EmailResponseGenerator
-
 def test_hybrid_classification():
     """
     Testa a classificação híbrida (regras de negócio + categorias detalhadas + tom + urgência)
     """
     classifier = EmailClassifier()
     response_generator = EmailResponseGenerator()
-    
     test_emails = [
         {
             'text': 'URGENTE! Estou com um erro crítico no sistema. O servidor não responde!',
@@ -55,11 +51,9 @@ def test_hybrid_classification():
             'expected_urgency': 'Média'
         }
     ]
-    
     print("🧪 TESTE HÍBRIDO - CLASSIFICADOR DE EMAILS")
     print("📋 Regras de Negócio + Categorias Detalhadas + Tom + Urgência")
     print("=" * 70)
-    
     for i, email in enumerate(test_emails, 1):
         result = classifier.classify(email['text'])
         response = response_generator.generate_response(
@@ -68,11 +62,9 @@ def test_hybrid_classification():
             result['tom'], 
             result['urgencia']
         )
-        
         category_ok = "✅" if result['categoria'] == email['expected_category'] else "❌"
         tone_ok = "✅" if result['tom'] == email['expected_tone'] else "❌"
         urgency_ok = "✅" if result['urgencia'] == email['expected_urgency'] else "❌"
-        
         print(f"\n{i}. TESTE: {email['text'][:60]}...")
         print(f"   📂 Categoria: {category_ok} {result['categoria']} (esperado: {email['expected_category']})")
         print(f"   🏷️  Subcategoria: {result['subcategoria']} | Business: {result['business_subcategory']}")
@@ -80,7 +72,6 @@ def test_hybrid_classification():
         print(f"   ⚡ Urgência: {urgency_ok} {result['urgencia']} (esperado: {email['expected_urgency']})")
         print(f"   🧠 Reasoning: {result.get('reasoning', 'N/A')}")
         print(f"   💬 Resposta: {response[:100]}...")
-    
     print("\n" + "=" * 70)
     print("🎯 TESTE HÍBRIDO CONCLUÍDO!")
     print("✨ Funcionalidades implementadas:")
@@ -89,6 +80,5 @@ def test_hybrid_classification():
     print("   😊 ANÁLISE DE TOM: Positivo, Negativo, Neutro")
     print("   ⚡ DETECÇÃO DE URGÊNCIA: Alta, Média, Baixa")
     print("   💬 RESPOSTAS PERSONALIZADAS: Baseadas em todos os fatores acima")
-
 if __name__ == '__main__':
     test_hybrid_classification()

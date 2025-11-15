@@ -1,17 +1,11 @@
-
 import django.core.validators
 import django.utils.timezone
 import uuid
 from django.db import migrations, models
-
-
 class Migration(migrations.Migration):
-
     initial = True
-
     dependencies = [
     ]
-
     operations = [
         migrations.CreateModel(
             name='CategoryStats',

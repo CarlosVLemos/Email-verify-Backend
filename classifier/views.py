@@ -9,7 +9,6 @@ from rest_framework.parsers import MultiPartParser, JSONParser, FormParser
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema, OpenApiExample
 import logging
-
 from .services.email_classification_service import EmailClassificationService
 from .services.summary_service import SummaryService
 from .services.batch_service import BatchProcessingService
@@ -27,19 +26,13 @@ from .serializers import (
     HealthCheckSerializer,
     ResponseHelper,
 )
-
 logger = logging.getLogger(__name__)
-
-
 classification_service = EmailClassificationService()
 summary_service = SummaryService()
 batch_service = BatchProcessingService()
-
-
 class EmailClassifierAPIView(APIView):
     """
     Endpoint principal para classificação de emails
-    
     Analisa o conteúdo de um email e retorna:
     - Categoria e subcategoria
     - Tom emocional
@@ -48,12 +41,10 @@ class EmailClassifierAPIView(APIView):
     - Análise de anexos mencionados
     """
     parser_classes = [JSONParser, MultiPartParser, FormParser]
-    
     @extend_schema(
         summary="Classificar Email",
         description="""
         Este endpoint realiza a classificação de emails com base em IA e regras inteligentes.
-
         Campos esperados:
         - `email_text` (string): Texto do email a ser classificado.
         - `file` (arquivo, opcional): Arquivo contendo o texto do email. Formatos suportados: .txt, .pdf, .docx.
@@ -106,11 +97,9 @@ class EmailClassifierAPIView(APIView):
             email_text = ''
             sender_email = None
             sender_name = None
-
             if request.FILES.get('file'):
                 uploaded_file = request.FILES['file']
                 email_text, error = FileTextExtractor.extract_text(uploaded_file)
-                
                 if error:
                     return Response(
                         ResponseHelper.format_error_response(error),
@@ -121,7 +110,6 @@ class EmailClassifierAPIView(APIView):
                         ResponseHelper.format_error_response('O arquivo está vazio ou não contém texto extraível'),
                         status=status.HTTP_400_BAD_REQUEST
                     )
-                
                 email_text, parsed_email, parsed_name = classification_service.extract_first_email_from_thread(email_text)
                 sender_email = request.data.get('sender_email') or parsed_email
                 sender_name = request.data.get('sender_name') or parsed_name
@@ -135,9 +123,7 @@ class EmailClassifierAPIView(APIView):
                 email_text = serializer.validated_data['email_text']
                 sender_email = request.data.get('sender_email')
                 sender_name = request.data.get('sender_name')
-
             result = classification_service.classify_email(email_text, sender_email, sender_name)
-
             try:
                 from analytics.views import save_email_analytics
                 analytics_data = {
@@ -156,38 +142,31 @@ class EmailClassifierAPIView(APIView):
                 )
             except Exception as e:
                 logger.warning(f"Falha ao salvar analytics: {e}")
-
             output_serializer = EmailClassificationOutputSerializer(data=result)
             if output_serializer.is_valid():
                 return Response(ResponseHelper.format_success_response(output_serializer.data), status=status.HTTP_200_OK)
             else:
                 logger.warning(f"Output validation failed: {output_serializer.errors}")
                 return Response(ResponseHelper.format_success_response(result), status=status.HTTP_200_OK)
-
         except Exception as e:
             logger.error(f"Erro na classificação: {e}", exc_info=True)
             return Response(
                 ResponseHelper.format_error_response('Erro interno no processamento', str(e) if logger.getEffectiveLevel() <= logging.DEBUG else None),
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
-
 class ExecutiveSummaryAPIView(APIView):
     """
     Gera resumo executivo de emails longos
-    
     Ideal para emails extensos (>100 palavras), extrai:
     - Frases mais importantes
     - Pontos-chave (prazos, valores, ações)
     - Score de relevância
     """
     parser_classes = [JSONParser, MultiPartParser, FormParser]
-    
     @extend_schema(
         summary="Resumo Executivo",
         description="""
         Este endpoint gera um resumo executivo de emails longos.
-
         Campos esperados:
         - `email_text` (string): Texto do email a ser resumido.
         - `max_sentences` (inteiro, opcional): Número máximo de frases no resumo (padrão: 3).
@@ -236,7 +215,6 @@ class ExecutiveSummaryAPIView(APIView):
         try:
             email_text = ''
             max_sentences = 3
-
             if request.FILES.get('file'):
                 uploaded_file = request.FILES['file']
                 email_text, error = FileTextExtractor.extract_text(uploaded_file)
@@ -255,40 +233,32 @@ class ExecutiveSummaryAPIView(APIView):
                     )
                 email_text = serializer.validated_data['email_text']
                 max_sentences = serializer.validated_data.get('max_sentences', 3)
-
             response_data = summary_service.generate_summary(email_text, max_sentences)
-
             output_serializer = SummaryOutputSerializer(data=response_data)
             if output_serializer.is_valid():
                 return Response(ResponseHelper.format_success_response(output_serializer.data), status=status.HTTP_200_OK)
             else:
                 logger.warning(f"Summary output validation failed: {output_serializer.errors}")
                 return Response(ResponseHelper.format_success_response(response_data), status=status.HTTP_200_OK)
-
         except Exception as e:
             logger.error(f"Erro ao gerar resumo: {e}", exc_info=True)
             return Response(
                 ResponseHelper.format_error_response('Erro ao gerar resumo', str(e)),
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
-
 class BatchEmailAPIView(APIView):
     """
     Processa múltiplos emails em lote
-    
     Otimizado para processar até 50 emails de uma vez com:
     - Processamento paralelo por chunks
     - Tracking individual de cada email
     - Métricas agregadas de performance
     """
     parser_classes = [JSONParser, MultiPartParser, FormParser]
-    
     @extend_schema(
         summary="Processamento em Lote",
         description="""
         Este endpoint processa múltiplos emails em lote.
-
         Campos esperados:
         - `emails` (lista de strings): Lista de textos de emails a serem processados.
         - `file` (arquivo, opcional): Arquivo contendo os emails. Formatos suportados: .txt, .csv, .json.
@@ -365,28 +335,22 @@ class BatchEmailAPIView(APIView):
         """Processa emails em lote"""
         try:
             emails_list = []
-
             if request.FILES.get('file'):
                 uploaded_file = request.FILES['file']
-                
                 file_validation = batch_service.validate_file(uploaded_file)
                 if not file_validation['valid']:
                     return Response(
                         ResponseHelper.format_error_response(file_validation['error']),
                         status=status.HTTP_400_BAD_REQUEST
                     )
-                
                 try:
                     extracted_text, error = FileTextExtractor.extract_text(uploaded_file)
-                    
                     if error:
                         return Response(
                             ResponseHelper.format_error_response(error),
                             status=status.HTTP_400_BAD_REQUEST
                         )
-                    
                     parsed_emails = classification_service.parse_thread(extracted_text)
-                    
                     if parsed_emails and len(parsed_emails) > 0:
                         emails_list = [email_data.get('body', '') for email_data in parsed_emails if email_data.get('body', '').strip()]
                         if len(parsed_emails) > 1:
@@ -396,7 +360,6 @@ class BatchEmailAPIView(APIView):
                         file_content = uploaded_file.read()
                         emails_list = batch_service.parse_file_to_emails(file_content, uploaded_file.name)
                         logger.info(f"Usando parser de arquivo: {len(emails_list)} emails encontrados")
-                        
                 except Exception as e:
                     return Response(
                         ResponseHelper.format_error_response(f'Erro ao processar arquivo: {str(e)}'),
@@ -410,46 +373,36 @@ class BatchEmailAPIView(APIView):
                         status=status.HTTP_400_BAD_REQUEST
                     )
                 emails_list = serializer.validated_data['emails']
-
             email_validation = batch_service.validate_emails(emails_list)
             if not email_validation['valid']:
                 return Response(
                     ResponseHelper.format_error_response(email_validation['error']),
                     status=status.HTTP_400_BAD_REQUEST
                 )
-
             response_data = batch_service.process_batch(emails_list)
-
             output_serializer = BatchEmailOutputSerializer(data=response_data)
             if output_serializer.is_valid():
                 return Response(ResponseHelper.format_success_response(output_serializer.data), status=status.HTTP_200_OK)
             else:
                 logger.warning(f"Batch output validation failed: {output_serializer.errors}")
                 return Response(ResponseHelper.format_success_response(response_data), status=status.HTTP_200_OK)
-
         except Exception as e:
             logger.error(f"Erro no batch: {e}", exc_info=True)
             return Response(
                 ResponseHelper.format_error_response('Erro no processamento em lote', str(e)),
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
-
 class HealthCheckAPIView(APIView):
     """
     Health check da API
-    
     Verifica o status de saúde de todos os componentes
     """
-    
     @extend_schema(
         summary="Health Check",
         description="""
         Este endpoint verifica o status de saúde da API.
-
         Campos esperados:
         - Nenhum campo é necessário para esta requisição.
-
         Resposta:
         - `status` (string): Status geral da API (healthy/unhealthy).
         - `version` (string): Versão da API.
@@ -487,7 +440,6 @@ class HealthCheckAPIView(APIView):
         except Exception as e:
             logger.error(f"Database health check failed: {e}")
             db_status = "unhealthy"
-
         try:
             from analytics.models import EmailAnalytics
             EmailAnalytics.objects.count()
@@ -495,7 +447,6 @@ class HealthCheckAPIView(APIView):
         except Exception as e:
             logger.error(f"Analytics health check failed: {e}")
             analytics_status = "unhealthy"
-
         try:
             classifier = EmailClassifier()
             test_result = classifier.classify("Test email")
@@ -503,13 +454,11 @@ class HealthCheckAPIView(APIView):
         except Exception as e:
             logger.error(f"Classifier health check failed: {e}")
             classifier_status = "unhealthy"
-
         overall_status = "healthy" if all([
             db_status == "healthy",
             analytics_status == "healthy",
             classifier_status == "healthy"
         ]) else "unhealthy"
-
         health_data = {
             "status": overall_status,
             "version": "1.0.0",
@@ -520,24 +469,20 @@ class HealthCheckAPIView(APIView):
                 "classifier": classifier_status
             }
         }
-
         serializer = HealthCheckSerializer(data=health_data)
         if serializer.is_valid():
             return Response(ResponseHelper.format_success_response(serializer.data), status=status.HTTP_200_OK)
         else:
             return Response(ResponseHelper.format_success_response(health_data), status=status.HTTP_200_OK)
-    
 class HuggingFaceResponseAPIView(APIView):
     """
     Endpoint para gerar uma sugestão de resposta diretamente usando o Hugging Face.
     """
     parser_classes = [JSONParser]
-
     @extend_schema(
         summary="Gerar Resposta com Hugging Face",
         description="""
         Este endpoint envia o texto de um e-mail diretamente para o Hugging Face e retorna a sugestão de resposta gerada.
-
         Campos esperados:
         - `email_text` (string): Texto do e-mail para gerar a resposta.
         """,
@@ -582,23 +527,17 @@ class HuggingFaceResponseAPIView(APIView):
                     ResponseHelper.format_error_response('Dados de entrada inválidos', serializer.errors),
                     status=status.HTTP_400_BAD_REQUEST
                 )
-
             email_text = serializer.validated_data['email_text']
-
-            # Reutilizando a lógica existente para chamar o Hugging Face
             from .email_scripts.email_classifier import EmailClassifier
             classifier = EmailClassifier()
             nlp_stats = classifier.nlp.get_text_stats(email_text)
             generated_response = classifier._generate_response_with_huggingface(email_text, nlp_stats)
-
             if not generated_response:
                 return Response(
                     ResponseHelper.format_error_response('Não foi possível gerar uma resposta com o Hugging Face'),
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
-
             return Response({"generated_response": generated_response}, status=status.HTTP_200_OK)
-
         except Exception as e:
             logger.error(f"Erro ao gerar resposta com Hugging Face: {e}", exc_info=True)
             return Response(
