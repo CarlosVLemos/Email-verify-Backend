@@ -17,6 +17,7 @@ from .utils.file_handler import FileTextExtractor
 from .email_scripts import EmailClassifier
 from .serializers import (
     EmailTextInputSerializer,
+    EmailFileInputSerializer,
     EmailClassificationOutputSerializer,
     SummaryInputSerializer,
     SummaryOutputSerializer,
@@ -61,11 +62,7 @@ class EmailClassifierAPIView(APIView):
         """,
         request={
             'application/json': EmailTextInputSerializer,
-            'multipart/form-data': OpenApiExample(
-                'Upload de Arquivo',
-                value={'file': 'arquivo.txt'},
-                request_only=True,
-            )
+            'multipart/form-data': EmailFileInputSerializer,
         },
         responses={
             200: EmailClassificationOutputSerializer,
@@ -296,14 +293,7 @@ class BatchEmailAPIView(APIView):
         - `emails` (lista de strings): Lista de textos de emails a serem processados.
         - `file` (arquivo, opcional): Arquivo contendo os emails. Formatos suportados: .txt, .csv, .json.
         """,
-        request={
-            'application/json': BatchEmailInputSerializer,
-            'multipart/form-data': OpenApiExample(
-                'Upload de Arquivo',
-                value={'file': 'emails.txt'},
-                request_only=True,
-            )
-        },
+        request=BatchEmailInputSerializer,
         responses={
             200: BatchEmailOutputSerializer,
             400: ErrorResponseSerializer,
@@ -536,3 +526,82 @@ class HealthCheckAPIView(APIView):
             return Response(ResponseHelper.format_success_response(serializer.data), status=status.HTTP_200_OK)
         else:
             return Response(ResponseHelper.format_success_response(health_data), status=status.HTTP_200_OK)
+    
+class HuggingFaceResponseAPIView(APIView):
+    """
+    Endpoint para gerar uma sugestão de resposta diretamente usando o Hugging Face.
+    """
+    parser_classes = [JSONParser]
+
+    @extend_schema(
+        summary="Gerar Resposta com Hugging Face",
+        description="""
+        Este endpoint envia o texto de um e-mail diretamente para o Hugging Face e retorna a sugestão de resposta gerada.
+
+        Campos esperados:
+        - `email_text` (string): Texto do e-mail para gerar a resposta.
+        """,
+        request=EmailTextInputSerializer,
+        responses={
+            200: {
+                'type': 'object',
+                'properties': {
+                    'generated_response': {
+                        'type': 'string',
+                        'description': 'Sugestão de resposta gerada pelo Hugging Face'
+                    }
+                }
+            },
+            400: ErrorResponseSerializer,
+            500: ErrorResponseSerializer,
+        },
+        examples=[
+            OpenApiExample(
+                'Exemplo de Requisição',
+                value={
+                    "email_text": "Olá, estou com problemas no sistema. Pode me ajudar?"
+                },
+                request_only=True,
+            ),
+            OpenApiExample(
+                'Exemplo de Resposta',
+                value={
+                    "generated_response": "Olá! Obrigado por entrar em contato. Vamos ajudá-lo com seu problema."
+                },
+                response_only=True,
+            ),
+        ],
+        tags=['Hugging Face']
+    )
+    def post(self, request):
+        """Gera uma sugestão de resposta usando o Hugging Face"""
+        try:
+            serializer = EmailTextInputSerializer(data=request.data)
+            if not serializer.is_valid():
+                return Response(
+                    ResponseHelper.format_error_response('Dados de entrada inválidos', serializer.errors),
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            email_text = serializer.validated_data['email_text']
+
+            # Reutilizando a lógica existente para chamar o Hugging Face
+            from .email_scripts.email_classifier import EmailClassifier
+            classifier = EmailClassifier()
+            nlp_stats = classifier.nlp.get_text_stats(email_text)
+            generated_response = classifier._generate_response_with_huggingface(email_text, nlp_stats)
+
+            if not generated_response:
+                return Response(
+                    ResponseHelper.format_error_response('Não foi possível gerar uma resposta com o Hugging Face'),
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+
+            return Response({"generated_response": generated_response}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.error(f"Erro ao gerar resposta com Hugging Face: {e}", exc_info=True)
+            return Response(
+                ResponseHelper.format_error_response('Erro interno no processamento', str(e)),
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

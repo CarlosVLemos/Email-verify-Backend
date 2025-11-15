@@ -33,26 +33,11 @@ class DashboardOverviewView(APIView):
     
     @extend_schema(
         summary="Visão geral do dashboard de analytics",
-        description="""
-        Retorna métricas gerais de produtividade de emails processados.
-        
-        **Métricas incluídas:**
-        - Total de emails processados
-        - Taxa de produtividade
-        - Confiança média das classificações
-        - Tempo médio de processamento
-        - Top categorias e remetentes
-        """,
+        description="Retorna métricas gerais de produtividade de emails processados",
         parameters=[
-            OpenApiParameter(
-                name='days',
-                type=OpenApiTypes.INT,
-                location=OpenApiParameter.QUERY,
-                description='Número de dias para análise (padrão: 30)',
-                required=False
-            )
+            OpenApiParameter('days', OpenApiTypes.INT, OpenApiParameter.QUERY, description='Número de dias para análise (padrão: 30)', required=False)
         ],
-        responses={200: OpenApiResponse(description='Dados do dashboard')},
+        responses={200: DashboardOverviewSerializer},
         tags=['Analytics Dashboard']
     )
     def get(self, request):
@@ -62,16 +47,8 @@ class DashboardOverviewView(APIView):
             productivity_stats = AnalyticsQueryBuilder.get_productivity_stats(date_from)
             
             period_field = 'last_30_days' if days >= 30 else 'last_7_days'
-            top_categories = list(AnalyticsQueryBuilder.get_top_categories(
-                period_field=period_field, 
-                limit=5
-            ))
-            
-            top_senders = list(AnalyticsQueryBuilder.get_top_senders(
-                min_emails=5,
-                limit=10,
-                order_by='productivity_rate'
-            ))
+            top_categories = list(AnalyticsQueryBuilder.get_top_categories(period_field=period_field, limit=5))
+            top_senders = list(AnalyticsQueryBuilder.get_top_senders(min_emails=5, limit=10, order_by='productivity_rate'))
             
             overview_data = {
                 'overview': {
@@ -91,10 +68,7 @@ class DashboardOverviewView(APIView):
             
             return Response(overview_data, status=status.HTTP_200_OK)
         except Exception as e:
-            return Response(
-                {'error': str(e), 'status': 'error'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            return Response({'error': str(e), 'status': 'error'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class ProductivityTrendView(APIView):
@@ -110,7 +84,7 @@ class ProductivityTrendView(APIView):
             OpenApiParameter('days', OpenApiTypes.INT, OpenApiParameter.QUERY, description='Período em dias'),
             OpenApiParameter('granularity', OpenApiTypes.STR, OpenApiParameter.QUERY, description='Granularidade (daily/hourly)'),
         ],
-        responses={200: OpenApiResponse(description='Dados de tendência')},
+        responses={200: ProductivityTrendSerializer},
         tags=['Analytics Dashboard']
     )
     def get(self, request):
@@ -163,7 +137,7 @@ class CategoryDistributionView(APIView):
         parameters=[
             OpenApiParameter('days', OpenApiTypes.INT, OpenApiParameter.QUERY, description='Período em dias'),
         ],
-        responses={200: OpenApiResponse(description='Distribuição de categorias')},
+        responses={200: CategoryDistributionSerializer},
         tags=['Analytics Dashboard']
     )
     def get(self, request):
@@ -171,10 +145,7 @@ class CategoryDistributionView(APIView):
         try:
             days, _ = AnalyticsRequestHelper.get_date_filter(request, default_days=30)
             period_field = 'last_30_days' if days >= 30 else 'last_7_days'
-            categories_raw = list(AnalyticsQueryBuilder.get_top_categories(
-                period_field=period_field,
-                limit=50
-            ))
+            categories_raw = list(AnalyticsQueryBuilder.get_top_categories(period_field=period_field, limit=50))
 
             distribution_data = []
             total_emails = 0
@@ -192,13 +163,10 @@ class CategoryDistributionView(APIView):
                 })
 
             for item in distribution_data:
-                item['percentage'] = AnalyticsResponseHelper.safe_percentage(
-                    item['count'],
-                    total_emails
-                )
+                item['percentage'] = AnalyticsResponseHelper.safe_percentage(item['count'], total_emails)
 
             response_data = {
-                'categories': distribution_data,
+                'distribution': distribution_data,
                 'total_emails': total_emails,
                 'period': f'{days} days'
             }
@@ -221,7 +189,7 @@ class SenderAnalysisView(APIView):
             OpenApiParameter('limit', OpenApiTypes.INT, OpenApiParameter.QUERY, description='Limite de resultados'),
             OpenApiParameter('min_emails', OpenApiTypes.INT, OpenApiParameter.QUERY, description='Mínimo de emails'),
         ],
-        responses={200: OpenApiResponse(description='Análise de remetentes')},
+        responses={200: SenderAnalysisSerializer},
         tags=['Analytics Dashboard']
     )
     def get(self, request):
@@ -301,7 +269,7 @@ class KeywordInsightsView(APIView):
             OpenApiParameter('limit', OpenApiTypes.INT, OpenApiParameter.QUERY, description='Limite de resultados'),
             OpenApiParameter('days', OpenApiTypes.INT, OpenApiParameter.QUERY, description='Período em dias'),
         ],
-        responses={200: OpenApiResponse(description='Insights de keywords')},
+        responses={200: KeywordInsightsSerializer},
         tags=['Analytics Dashboard']
     )
     def get(self, request):
@@ -379,7 +347,7 @@ class PerformanceMetricsView(APIView):
         parameters=[
             OpenApiParameter('days', OpenApiTypes.INT, OpenApiParameter.QUERY, description='Período em dias'),
         ],
-        responses={200: OpenApiResponse(description='Métricas de performance')},
+        responses={200: PerformanceMetricsSerializer},
         tags=['Analytics Dashboard']
     )
     def get(self, request):
@@ -436,7 +404,7 @@ class EmailAnalyticsListView(APIView):
             OpenApiParameter('page', OpenApiTypes.INT, OpenApiParameter.QUERY, description='Número da página'),
             OpenApiParameter('per_page', OpenApiTypes.INT, OpenApiParameter.QUERY, description='Itens por página'),
         ],
-        responses={200: OpenApiResponse(description='Lista de emails')},
+        responses={200: EmailAnalyticsListSerializer},
         tags=['Analytics Dashboard']
     )
     def get(self, request):
