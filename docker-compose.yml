@@ -53,7 +53,13 @@ services:
     environment:
       - DEBUG=True
       - SECRET_KEY=django-insecure-dev-key-change-in-production
-      - DATABASE_URL=postgresql://postgres:postgres_password_change_in_production@db:5432/email_classifier_db
+      - DB_ENGINE=postgresql
+      - DB_NAME=email_classifier_db
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres_password_change_in_production
+      - DB_HOST=db
+      - DB_PORT=5432
+      - USE_REDIS=True
       - REDIS_URL=redis://redis:6379/0
       - ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0
     depends_on:

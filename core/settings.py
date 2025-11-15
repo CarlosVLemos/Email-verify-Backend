@@ -139,12 +139,6 @@ LOGGING = {
         },
     },
     'handlers': {
-        'file': {
-            'level': os.getenv('LOG_LEVEL', 'INFO'),
-            'class': 'logging.FileHandler',
-            'filename': BASE_DIR / 'logs/django.log',
-            'formatter': 'verbose',
-        },
         'console': {
             'level': os.getenv('LOG_LEVEL', 'INFO'),
             'class': 'logging.StreamHandler',
@@ -152,17 +146,17 @@ LOGGING = {
         },
     },
     'root': {
-        'handlers': ['console', 'file'],
+        'handlers': ['console'],
         'level': os.getenv('LOG_LEVEL', 'INFO'),
     },
     'loggers': {
         'django': {
-            'handlers': ['console', 'file'],
+            'handlers': ['console'],
             'level': os.getenv('LOG_LEVEL', 'INFO'),
             'propagate': False,
         },
         'classifier': {
-            'handlers': ['console', 'file'],
+            'handlers': ['console'],
             'level': os.getenv('LOG_LEVEL', 'INFO'),
             'propagate': False,
         },
@@ -341,18 +335,24 @@ curl -H "X-API-Key: dev_test_key_123" \\
     'SERVE_PERMISSIONS': ['rest_framework.permissions.AllowAny'],
     'SERVE_AUTHENTICATION': None,
     
-
+    # Silenciar warnings sobre autenticação customizada
+    'ENUM_NAME_OVERRIDES': {},
+    'POSTPROCESSING_HOOKS': [],
+    'PREPROCESSING_HOOKS': [],
+    'WARN_ON_ERROR': False,  # Desabilita warnings
+    
+    'SECURITY': [{'ApiKeyAuth': []}],
+    
     'APPEND_COMPONENTS': {
         'securitySchemes': {
             'ApiKeyAuth': {
                 'type': 'apiKey',
                 'in': 'header',
                 'name': 'X-API-Key',
-                'description': 'API Key para autenticação (opcional em dev)'
+                'description': 'API Key para autenticação (opcional em desenvolvimento)'
             }
         }
     },
-    'SECURITY': [{'ApiKeyAuth': []}],
     
     'SWAGGER_UI_SETTINGS': {
         'deepLinking': True,
@@ -365,10 +365,12 @@ curl -H "X-API-Key: dev_test_key_123" \\
     'SWAGGER_UI_FAVICON_HREF': 'SIDECAR',
     'REDOC_DIST': 'SIDECAR',
     'SORT_OPERATIONS': False,
+    'SCHEMA_PATH': '/tmp/schema.yml',  # Caminho com permissão para escrever
     'TAGS': [
         {'name': 'Email Classification', 'description': 'Endpoints para classificação e análise de emails'},
         {'name': 'Analytics Dashboard', 'description': 'Endpoints para métricas e insights de produtividade'},
         {'name': 'System', 'description': 'Endpoints de sistema e health check'},
+        {'name': 'Hugging Face', 'description': 'Endpoints para integração com Hugging Face'},
     ],
 }
 

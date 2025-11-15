@@ -6,7 +6,7 @@ from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 from django.conf import settings
 import secrets
-
+from drf_spectacular.extensions import OpenApiAuthenticationExtension
 
 class APIKeyAuthentication(BaseAuthentication):
     """
@@ -60,6 +60,18 @@ class OptionalAPIKeyAuthentication(APIKeyAuthentication):
         return (None, None)
 
 
+class OptionalAPIKeyAuthenticationExtension(OpenApiAuthenticationExtension):
+    target_class = 'core.middleware.authentication.OptionalAPIKeyAuthentication'  # Caminho completo da classe
+    name = 'OptionalAPIKeyAuthentication'
+
+    def get_security_definition(self, auto_schema):
+        return {
+            'type': 'apiKey',
+            'name': 'X-API-Key',
+            'in': 'header',
+        }
+
+
 def generate_api_key(prefix: str = "sk") -> str:
     """
     Gera uma API key segura
@@ -74,5 +86,3 @@ def generate_api_key(prefix: str = "sk") -> str:
         >>> generate_api_key("dev")
         'dev_a8f3j29fj2f9j23f9j23f9j23f'
     """
-    random_part = secrets.token_urlsafe(32)
-    return f"{prefix}_{random_part}"

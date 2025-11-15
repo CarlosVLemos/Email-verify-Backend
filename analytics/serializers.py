@@ -10,6 +10,7 @@ except ImportError:
     HAS_DRF = False
 
 from django.db import models
+from drf_spectacular.utils import extend_schema_field
 from .models import (
     EmailAnalytics, CategoryStats, SenderStats, 
     KeywordFrequency, TimeSeriesData
@@ -56,7 +57,8 @@ class CategoryStatsSerializer(serializers.ModelSerializer):
             'updated_at'
         ]
     
-    def get_percentage_of_total(self, obj):
+    @extend_schema_field(serializers.FloatField)
+    def get_percentage_of_total(self, obj) -> float:
         """Calcula percentual do total geral"""
         total_all = CategoryStats.objects.aggregate(
             total=models.Sum('total_count')
@@ -105,7 +107,8 @@ class TimeSeriesDataSerializer(serializers.ModelSerializer):
             'granularity', 'datetime_label'
         ]
     
-    def get_datetime_label(self, obj):
+    @extend_schema_field(serializers.CharField)
+    def get_datetime_label(self, obj) -> str:
         """Gera label formatado para gráficos"""
         if obj.granularity == 'hourly':
             return f"{obj.date.strftime('%d/%m')} {obj.hour:02d}h"

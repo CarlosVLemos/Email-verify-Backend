@@ -438,55 +438,68 @@ class EmailClassifier:
             logger.warning("HF_API_KEY não configurada - usando resposta padrão")
             return None
 
-        API_URL = "https://api-inference.huggingface.co/models/pierreguillou/gpt2-small-portuguese"
+        API_URL = "https://router.huggingface.co/v1/chat/completions"
 
         # Prompt mais estruturado para melhor resposta
-        prompt = f"""Email recebido: {email_text[:200]}...
+        messages = [
+            {"role": "system", "content": "Você é um assistente profissional que gera respostas curtas e objetivas em português brasileiro para emails."},
+            {"role": "user", "content": f"""Email recebido: {email_text[:200]}...
 
 Análise: {nlp_stats}
 
-Gere uma resposta profissional em português brasileiro, curta e objetiva:"""
+Gere uma resposta profissional em português brasileiro, curta e objetiva:"""}
+        ]
 
-        try:
-            response = requests.post(
-                API_URL,
-                headers={"Authorization": f"Bearer {HF_API_KEY}"},
-                json={
-                    "inputs": prompt,
-                    "parameters": {
-                        "max_length": 100,
+        # Tentar modelos em ordem de preferência (apenas modelos disponíveis nos Inference Providers)
+        models_to_try = [
+            "openai/gpt-oss-120b",
+            "deepseek-ai/DeepSeek-R1",
+            "microsoft/WizardLM-2-8x22B"
+        ]
+
+        for model in models_to_try:
+            try:
+                response = requests.post(
+                    API_URL,
+                    headers={"Authorization": f"Bearer {HF_API_KEY}"},
+                    json={
+                        "model": model,
+                        "messages": messages,
+                        "max_tokens": 100,
                         "temperature": 0.7,
-                        "do_sample": True,
-                        "pad_token_id": 50256
-                    }
-                },
-                timeout=10  # Timeout para não travar
-            )
+                        "top_p": 0.9
+                    },
+                    timeout=15  # Timeout maior para modelos maiores
+                )
 
-            if response.status_code == 200:
-                result = response.json()
-                if isinstance(result, list) and len(result) > 0:
-                    generated_text = result[0].get('generated_text', '')
-                    # Remove o prompt da resposta
-                    if generated_text.startswith(prompt):
-                        generated_text = generated_text[len(prompt):].strip()
-                    return generated_text[:200]  # Limita tamanho
+                if response.status_code == 200:
+                    result = response.json()
+                    if 'choices' in result and len(result['choices']) > 0:
+                        generated_text = result['choices'][0]['message']['content'].strip()
+                        return generated_text[:200]  # Limita tamanho
+                    else:
+                        logger.warning(f"Resposta HuggingFace vazia para modelo {model}")
+                        continue
+                elif response.status_code == 503:
+                    logger.warning(f"HuggingFace API temporariamente indisponível (503) para modelo {model}")
+                    continue
+                elif response.status_code == 404:
+                    logger.warning(f"Modelo {model} não encontrado, tentando próximo...")
+                    continue
                 else:
-                    logger.warning("Resposta HuggingFace vazia ou mal formatada")
-                    return None
-            elif response.status_code == 503:
-                logger.warning("HuggingFace API temporariamente indisponível (503)")
-                return None
-            else:
-                logger.error(f"Erro HuggingFace API: {response.status_code} - {response.text}")
-                return None
+                    logger.error(f"Erro HuggingFace API para modelo {model}: {response.status_code} - {response.text}")
+                    continue
 
-        except requests.exceptions.Timeout:
-            logger.error("Timeout na chamada para HuggingFace API")
-            return None
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Erro de rede na chamada para HuggingFace: {e}")
-            return None
-        except Exception as e:
-            logger.error(f"Erro inesperado na chamada para HuggingFace: {e}")
-            return None
+            except requests.exceptions.Timeout:
+                logger.error(f"Timeout na chamada para HuggingFace API com modelo {model}")
+                continue
+            except requests.exceptions.RequestException as e:
+                logger.error(f"Erro de rede na chamada para HuggingFace com modelo {model}: {e}")
+                continue
+            except Exception as e:
+                logger.error(f"Erro inesperado na chamada para HuggingFace com modelo {model}: {e}")
+                continue
+
+        # Se nenhum modelo funcionou, retorna uma resposta padrão
+        logger.warning("Todos os modelos falharam, usando resposta padrão")
+        return "Obrigado pelo seu email. Entraremos em contato em breve para ajudá-lo."
